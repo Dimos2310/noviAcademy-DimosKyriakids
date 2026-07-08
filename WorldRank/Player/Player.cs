@@ -1,18 +1,20 @@
 namespace WorldRank;
 
 // Player: Id is auto-generated; Score changes only through AddScore
-public class Player
+public class Player : IPlayer
 {
-    public Guid Id { get; }                   // read-only: set once in the constructor
-    public string Name { get; set; }
-    public int Score { get; private set; }    // read anywhere, written only inside the class
+    private static int _nextId = 1;
+
+    public int Id { get; }                     // read-only: assigned once in the constructor
+    public string Name { get; }                 // read-only: no public setter
+    public int Score { get; private set; }      // read anywhere, written only inside the class
 
     public Player(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
-        Id = Guid.NewGuid();
+        Id = _nextId++;
         Name = name;
         Score = 0;
     }
@@ -26,5 +28,5 @@ public class Player
         Score += points;
     }
 
-    public override string ToString() => $"{Name} (Score: {Score})";
+    public override string ToString() => $"#{Id} {Name} (Score: {Score})";
 }
