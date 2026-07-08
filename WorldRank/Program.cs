@@ -1,4 +1,8 @@
+using NLog;
 using WorldRank;
+
+var logger = LogManager.GetCurrentClassLogger();
+logger.Info("App started");
 
 // In-memory data stores: everything lives while the program runs.
 // The wallet repository is created first so the player repository can
@@ -68,6 +72,8 @@ while (true)
             break;
         case "12":
             Console.WriteLine("Bye!");
+            logger.Info("App shutting down");
+            LogManager.Shutdown(); // flushes file writes before exit
             return;
         default:
             Console.WriteLine("Invalid option, try again.");
@@ -165,6 +171,7 @@ void AddPlayer()
     var player = new Player(name);
     playerRepository.AddPlayer(player);
     Console.WriteLine($"Added: {player}");
+    logger.Info("Player added: {Player}", player);
 }
 
 void ListPlayers()
@@ -207,6 +214,7 @@ void UpdateScore()
     // Score changes only through the method (encapsulation)
     player.AddScore(points);
     Console.WriteLine($"Updated: {player}");
+    logger.Info("Score updated for player {PlayerId}: +{Points}", player.Id, points);
 }
 
 void DeletePlayer()
@@ -216,6 +224,7 @@ void DeletePlayer()
 
     playerRepository.DeletePlayer(player.Id);
     Console.WriteLine($"Deleted: {player.Name}");
+    logger.Info("Player deleted: {PlayerId} ({Name})", player.Id, player.Name);
 }
 
 void GroupPlayersByScore()
@@ -250,10 +259,12 @@ void AddWallet()
     {
         walletRepository.Add(new Wallet(currency.Value), player.Id);
         Console.WriteLine($"Added {currency} wallet to {player.Name}.");
+        logger.Info("Wallet added: player {PlayerId}, currency {Currency}", player.Id, currency);
     }
     catch (InvalidOperationException ex)
     {
         Console.WriteLine(ex.Message);
+        logger.Warn(ex, "Failed to add wallet for player {PlayerId}", player.Id);
     }
 }
 
@@ -273,10 +284,12 @@ void Deposit()
     {
         wallet.Deposit(amount);
         Console.WriteLine($"New balance: {wallet}");
+        logger.Info("Deposit of {Amount} to {Currency} wallet succeeded", amount, wallet.Currency);
     }
     catch (Exception ex) when (ex is ArgumentOutOfRangeException or InvalidOperationException)
     {
         Console.WriteLine(ex.Message);
+        logger.Warn(ex, "Deposit failed for {Currency} wallet", wallet.Currency);
     }
 }
 
@@ -296,10 +309,12 @@ void Withdraw()
     {
         wallet.Withdraw(amount);
         Console.WriteLine($"New balance: {wallet}");
+        logger.Info("Withdrawal of {Amount} from {Currency} wallet succeeded", amount, wallet.Currency);
     }
     catch (Exception ex) when (ex is ArgumentOutOfRangeException or InvalidOperationException)
     {
         Console.WriteLine(ex.Message);
+        logger.Warn(ex, "Withdrawal failed for {Currency} wallet", wallet.Currency);
     }
 }
 

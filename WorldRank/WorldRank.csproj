@@ -7,4 +7,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="NLog.Extensions.Logging" Version="6.1.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy if newer: NLog needs nlog.config next to the built .exe -->
+    <None Include="nlog.config" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
