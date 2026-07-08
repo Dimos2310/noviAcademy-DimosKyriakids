@@ -2,7 +2,7 @@ namespace WorldRank;
 
 // Wallet: Balance changes only through Deposit/Withdraw, never goes negative,
 // and no transaction is allowed while the wallet is blocked
-public class Wallet
+public class Wallet : IWallet
 {
     public decimal Balance { get; private set; }
     public Currency Currency { get; }

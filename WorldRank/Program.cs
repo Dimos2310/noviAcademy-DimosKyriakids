@@ -1,8 +1,10 @@
 using WorldRank;
 
-// In-memory data stores: everything lives while the program runs
-IPlayerRepository playerRepository = new InMemoryPlayerRepository();
+// In-memory data stores: everything lives while the program runs.
+// The wallet repository is created first so the player repository can
+// cascade wallet deletion when a player is removed.
 IWalletRepository walletRepository = new InMemoryWalletRepository();
+IPlayerRepository playerRepository = new InMemoryPlayerRepository(walletRepository);
 
 while (true)
 {
@@ -85,7 +87,7 @@ void Pause()
 }
 
 // Prompts for a player name and resolves it against the repository (case-insensitive)
-Player? PromptForPlayer(string label = "Player name: ")
+IPlayer? PromptForPlayer(string label = "Player name: ")
 {
     Console.Write(label);
     var name = Console.ReadLine()?.Trim() ?? string.Empty;
@@ -121,7 +123,7 @@ Currency? PromptForCurrency()
 }
 
 // Resolves a player + currency to one of that player's wallets
-Wallet? PromptForWallet()
+IWallet? PromptForWallet()
 {
     var player = PromptForPlayer();
     if (player is null) return null;

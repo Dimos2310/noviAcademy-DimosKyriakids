@@ -20,8 +20,15 @@ public class InMemoryWalletRepository : IWalletRepository
         wallets.Add(wallet);
     }
 
-    public IEnumerable<Wallet> GetByPlayer(int playerId) =>
-        _walletsByPlayer.TryGetValue(playerId, out var wallets)
-            ? wallets
-            : Enumerable.Empty<Wallet>();
+    public IEnumerable<IWallet> GetByPlayer(int playerId)
+    {
+        // AsReadOnly() wraps the live list — a caller cannot cast it back
+        // and mutate the repository's internal state
+        if (_walletsByPlayer.TryGetValue(playerId, out var wallets))
+            return wallets.AsReadOnly();
+
+        return Array.Empty<IWallet>();
+    }
+
+    public void RemoveByPlayer(int playerId) => _walletsByPlayer.Remove(playerId);
 }
