@@ -12,7 +12,7 @@ IPlayerRepository playerRepository = new InMemoryPlayerRepository(walletReposito
 
 while (true)
 {
-    Console.Clear();
+    //Console.Clear();
     Console.WriteLine("========================================");
     Console.WriteLine("      WorldRank — Player Registry       ");
     Console.WriteLine("========================================");
@@ -259,12 +259,14 @@ void AddWallet()
     {
         walletRepository.Add(new Wallet(currency.Value), player.Id);
         Console.WriteLine($"Added {currency} wallet to {player.Name}.");
-        logger.Info("Wallet added: player {PlayerId}, currency {Currency}", player.Id, currency);
+        logger.Info("Wallet added for player {PlayerId} in {Currency}", player.Id, currency);
     }
-    catch (InvalidOperationException ex)
+    catch (DuplicateWalletException ex)
     {
+        // Expected & recoverable: the user picked a currency they already have.
         Console.WriteLine(ex.Message);
-        logger.Warn(ex, "Failed to add wallet for player {PlayerId}", player.Id);
+        logger.Warn("Duplicate wallet rejected for player {PlayerId} in {Currency}",
+            ex.PlayerId, ex.Currency);
     }
 }
 
@@ -284,12 +286,19 @@ void Deposit()
     {
         wallet.Deposit(amount);
         Console.WriteLine($"New balance: {wallet}");
-        logger.Info("Deposit of {Amount} to {Currency} wallet succeeded", amount, wallet.Currency);
+        logger.Info("Deposit of {Amount} into {Currency} wallet succeeded", amount, wallet.Currency);
     }
-    catch (Exception ex) when (ex is ArgumentOutOfRangeException or InvalidOperationException)
+    catch (WalletBlockedException ex)
     {
+        // Business rule violated -> custom exception, logged with typed data.
         Console.WriteLine(ex.Message);
-        logger.Warn(ex, "Deposit failed for {Currency} wallet", wallet.Currency);
+        logger.Warn(ex, "Deposit blocked on {Currency} wallet", ex.Currency);
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        // Caller misused the API (non-positive amount).
+        Console.WriteLine("Deposit amount must be positive.");
+        logger.Warn(ex, "Invalid deposit amount {Amount} on {Currency} wallet", amount, wallet.Currency);
     }
 }
 
@@ -311,10 +320,22 @@ void Withdraw()
         Console.WriteLine($"New balance: {wallet}");
         logger.Info("Withdrawal of {Amount} from {Currency} wallet succeeded", amount, wallet.Currency);
     }
-    catch (Exception ex) when (ex is ArgumentOutOfRangeException or InvalidOperationException)
+    catch (InsufficientFundsException ex)
+    {
+        // Most specific first: carries Balance + RequestedAmount as typed data.
+        Console.WriteLine(ex.Message);
+        logger.Warn("Withdrawal declined: {Requested} requested but only {Balance} in {Currency} wallet",
+            ex.RequestedAmount, ex.Balance, ex.Currency);
+    }
+    catch (WalletBlockedException ex)
     {
         Console.WriteLine(ex.Message);
-        logger.Warn(ex, "Withdrawal failed for {Currency} wallet", wallet.Currency);
+        logger.Warn(ex, "Withdrawal blocked on {Currency} wallet", ex.Currency);
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        Console.WriteLine("Withdrawal amount must be positive.");
+        logger.Warn(ex, "Invalid withdrawal amount {Amount} on {Currency} wallet", amount, wallet.Currency);
     }
 }
 

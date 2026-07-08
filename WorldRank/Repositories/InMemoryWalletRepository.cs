@@ -7,15 +7,19 @@ public class InMemoryWalletRepository : IWalletRepository
 
     public void Add(Wallet wallet, int playerId)
     {
+        ArgumentNullException.ThrowIfNull(wallet);
+
         if (!_walletsByPlayer.TryGetValue(playerId, out var wallets))
         {
             wallets = new List<Wallet>();
+            // This line matters: without storing the new list back in the
+            // dictionary, wallets.Add below would mutate a list nobody keeps,
+            // and GetByPlayer would return nothing. (See DEBUGGING.md.)
             _walletsByPlayer[playerId] = wallets;
         }
 
         if (wallets.Any(w => w.Currency == wallet.Currency))
-            throw new InvalidOperationException(
-                $"Player {playerId} already has a {wallet.Currency} wallet.");
+            throw new DuplicateWalletException(playerId, wallet.Currency);
 
         wallets.Add(wallet);
     }
