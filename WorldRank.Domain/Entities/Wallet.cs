@@ -33,7 +33,11 @@ namespace WorldRank.Domain.Entities
 			Balance = balance;
 		}
 
-		public void Deposit(decimal amount)
+		public void Deposit(decimal amount) => AddFunds(amount);
+
+		public void Withdraw(decimal amount) => SubtractFunds(amount);
+
+		public void AddFunds(decimal amount)
 		{
 			if (amount <= 0)
 				throw new InvalidAmountException(amount);
@@ -44,7 +48,7 @@ namespace WorldRank.Domain.Entities
 			Balance += amount;
 		}
 
-		public void Withdraw(decimal amount)
+		public void SubtractFunds(decimal amount)
 		{
 			if (amount <= 0)
 				throw new InvalidAmountException(amount);
@@ -57,6 +61,17 @@ namespace WorldRank.Domain.Entities
 				throw new InsufficientFundsException(newBalance);
 
 			Balance = newBalance;
+		}
+
+		public void ForceSubtractFunds(decimal amount)
+		{
+			if (amount <= 0)
+				throw new InvalidAmountException(amount);
+
+			if (IsBlocked)
+				throw new WalletBlockedException(Currency);
+
+			Balance -= amount;
 		}
 
 		public override string ToString() => $"Balance -> {Balance} Currency -> {Currency} IsBlocked -> {IsBlocked}";

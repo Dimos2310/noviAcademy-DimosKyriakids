@@ -14,5 +14,8 @@ namespace WorldRank.Domain.Entities
 		void SetBalance(decimal balance);
 		void Deposit(decimal amount);
 		void Withdraw(decimal amount);
+		void AddFunds(decimal amount);
+		void SubtractFunds(decimal amount);
+		void ForceSubtractFunds(decimal amount);
 	}
 }

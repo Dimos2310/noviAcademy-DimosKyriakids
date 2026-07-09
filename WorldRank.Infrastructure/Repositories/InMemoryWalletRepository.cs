@@ -1,9 +1,10 @@
 using NLog;
+using WorldRank.Application.Repositories;
 using WorldRank.Domain.Entities;
 using WorldRank.Domain.Enums;
 using WorldRank.Domain.Exceptions;
 
-namespace WorldRank.Console
+namespace WorldRank.Infrastructure.Repositories
 {
 	public class InMemoryWalletRepository : IWalletRepository
 	{
@@ -61,7 +62,7 @@ namespace WorldRank.Console
 			_logger.Info("Player {PlayerId} {Currency} wallet unblocked", playerId, currency);
 		}
 
-		private Wallet GetWallet(int playerId, Currency currency)
+		public Wallet GetWallet(int playerId, Currency currency)
 		{
 			var wallet = _wallets.SingleOrDefault(item => item.PlayerId == playerId && item.Currency == currency);
 
