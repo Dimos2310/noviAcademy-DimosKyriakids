@@ -1,85 +1,75 @@
 using NLog;
+using WorldRank.Console.Enums;
+using WorldRank.Console.Exceptions;
 
-namespace WorldRank;
-
-// Links wallets to players by id; a player can hold at most one wallet per currency.
-// Logs every successful mutation at the service layer with structured properties.
-public class InMemoryWalletRepository : IWalletRepository
+namespace WorldRank.Console
 {
-    private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
+	public class InMemoryWalletRepository : IWalletRepository
+	{
+		private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
-    private readonly Dictionary<int, List<Wallet>> _walletsByPlayer = new();
+		private readonly List<Wallet> _wallets = new List<Wallet>();
 
-    public void Add(Wallet wallet, int playerId)
-    {
-        ArgumentNullException.ThrowIfNull(wallet);
+		public void Add(Wallet wallet)
+		{
+			var exists = _wallets.Any(item => item.PlayerId == wallet.PlayerId && item.Currency == wallet.Currency);
 
-        if (!_walletsByPlayer.TryGetValue(playerId, out var wallets))
-        {
-            wallets = new List<Wallet>();
-            // This line matters: without storing the new list back in the
-            // dictionary, wallets.Add below would mutate a list nobody keeps,
-            // and GetByPlayer would return nothing. (See DEBUGGING.md.)
-            _walletsByPlayer[playerId] = wallets;
-        }
+			if (exists)
+			{
+				throw new DuplicateWalletException(wallet.PlayerId, wallet.Currency);
+			}
 
-        if (wallets.Any(w => w.Currency == wallet.Currency))
-            throw new DuplicateWalletException(playerId, wallet.Currency);
+			_wallets.Add(wallet);
+			_logger.Info("Wallet created for player {PlayerId} in {Currency} with balance {Balance}", wallet.PlayerId, wallet.Currency, wallet.Balance);
+		}
 
-        wallets.Add(wallet);
-        _logger.Info("Wallet added for player {PlayerId} in {Currency}", playerId, wallet.Currency);
-    }
+		public List<Wallet> GetAllWalletsByPlayerId(int playerId)
+		{
+			return _wallets.Where(item => item.PlayerId == playerId).ToList();
+		}
 
-    public IEnumerable<IWallet> GetByPlayer(int playerId)
-    {
-        // AsReadOnly() wraps the live list — a caller cannot cast it back
-        // and mutate the repository's internal state
-        if (_walletsByPlayer.TryGetValue(playerId, out var wallets))
-            return wallets.AsReadOnly();
+		public void UpdateBalance(int playerId, Currency currency, decimal newBalance)
+		{
+			GetWallet(playerId, currency).SetBalance(newBalance);
+			_logger.Info("Player {PlayerId} {Currency} wallet balance set to {Balance}", playerId, currency, newBalance);
+		}
 
-        return Array.Empty<IWallet>();
-    }
+		public void Deposit(int playerId, Currency currency, decimal amount)
+		{
+			var wallet = GetWallet(playerId, currency);
+			wallet.Deposit(amount);
+			_logger.Info("Deposited {Amount} to player {PlayerId} {Currency} wallet (balance {Balance})", amount, playerId, currency, wallet.Balance);
+		}
 
-    public void RemoveByPlayer(int playerId) => _walletsByPlayer.Remove(playerId);
+		public void Withdraw(int playerId, Currency currency, decimal amount)
+		{
+			var wallet = GetWallet(playerId, currency);
+			wallet.Withdraw(amount);
+			_logger.Info("Withdrew {Amount} from player {PlayerId} {Currency} wallet (balance {Balance})", amount, playerId, currency, wallet.Balance);
+		}
 
-    public void Deposit(int playerId, Currency currency, decimal amount)
-    {
-        var wallet = GetWallet(playerId, currency);
-        wallet.Deposit(amount);
-        _logger.Info("Deposit of {Amount} into player {PlayerId} {Currency} wallet succeeded (balance {Balance})",
-            amount, playerId, currency, wallet.Balance);
-    }
+		public void Block(int playerId, Currency currency)
+		{
+			GetWallet(playerId, currency).Block();
+			_logger.Info("Player {PlayerId} {Currency} wallet blocked", playerId, currency);
+		}
 
-    public void Withdraw(int playerId, Currency currency, decimal amount)
-    {
-        var wallet = GetWallet(playerId, currency);
-        wallet.Withdraw(amount);
-        _logger.Info("Withdrawal of {Amount} from player {PlayerId} {Currency} wallet succeeded (balance {Balance})",
-            amount, playerId, currency, wallet.Balance);
-    }
+		public void Unblock(int playerId, Currency currency)
+		{
+			GetWallet(playerId, currency).Unblock();
+			_logger.Info("Player {PlayerId} {Currency} wallet unblocked", playerId, currency);
+		}
 
-    public void Block(int playerId, Currency currency)
-    {
-        GetWallet(playerId, currency).Block();
-        _logger.Info("Player {PlayerId} {Currency} wallet blocked", playerId, currency);
-    }
+		private Wallet GetWallet(int playerId, Currency currency)
+		{
+			var wallet = _wallets.SingleOrDefault(item => item.PlayerId == playerId && item.Currency == currency);
 
-    public void Unblock(int playerId, Currency currency)
-    {
-        GetWallet(playerId, currency).Unblock();
-        _logger.Info("Player {PlayerId} {Currency} wallet unblocked", playerId, currency);
-    }
+			if (wallet is null)
+			{
+				throw new WalletNotFoundException(playerId, currency);
+			}
 
-    // Resolves the one wallet a player holds in a currency, or throws.
-    private Wallet GetWallet(int playerId, Currency currency)
-    {
-        if (_walletsByPlayer.TryGetValue(playerId, out var wallets))
-        {
-            var wallet = wallets.FirstOrDefault(w => w.Currency == currency);
-            if (wallet is not null)
-                return wallet;
-        }
-
-        throw new WalletNotFoundException(playerId, currency);
-    }
+			return wallet;
+		}
+	}
 }

@@ -1,13 +1,18 @@
-namespace WorldRank;
+using WorldRank.Console.Enums;
 
-public interface IWallet
+namespace WorldRank.Console
 {
-    decimal Balance { get; }
-    Currency Currency { get; }
-    bool IsBlocked { get; }
+	public interface IWallet
+	{
+		int PlayerId { get; }
+		Currency Currency { get; }
+		decimal Balance { get; }
+		bool IsBlocked { get; }
 
-    void Deposit(decimal amount);
-    void Withdraw(decimal amount);
-    void Block();
-    void Unblock();
+		void Block();
+		void Unblock();
+		void SetBalance(decimal balance);
+		void Deposit(decimal amount);
+		void Withdraw(decimal amount);
+	}
 }

@@ -1,0 +1,23 @@
+**OOP + Collections**
+
+Extend the Day 1 player registry: add a `Wallet` class linked to each player. No public setters — invariants enforced. Interfaces, inheritance, in-memory LINQ to filter and sort.
+
+**What to build:**
+- An `IPlayer` interface with  `Id` (int), `Name` (string),`Score` (int) properties, that will be implemented by Player
+- A `Wallet` class: `Balance` (decimal, private setter), `Currency` (enum), `IsBlocked` (bool). Balance can't go negative
+- Link `Wallet` to `Player` (a player can have multiple wallets) one per currency, over an interface
+- An `IWalletRepository` interface with `Add(Wallet wallet, int playerId)` which will add a new wallet under player, `GetByPlayer(int playerId)` which will return all wallets of player
+- An `InMemoryWalletRepository` implementing the `IWalletRepository`  interface
+- An `IPlayerRepository` interface with `AddPlayer(Player p)` , `FindPlayer(int playerId)`, `DeletePlayer(int playerId)`,  (optional) `GroupPlayersByScore`
+- An `InMemoryPlayerRepository` implementing the `IPlayerRepository` 
+- Use LINQ queries for search operations
+- Extend the console menu to support the new functionality
+
+**Steps:**
+1. Create a new git branch based on your day1 deliverable.
+2. Create `IPlayer` interface and implemented by `Player`
+2. Create `Currency` enum and `Wallet` class with encapsulated balance
+3. Define and implement `IWalletRepository`
+4. Define and implement `IPlayerRepository`
+5. Expand the console menu to support new functionality
+6. Commit and push

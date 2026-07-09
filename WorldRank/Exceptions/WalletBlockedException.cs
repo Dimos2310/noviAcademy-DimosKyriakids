@@ -1,13 +1,15 @@
-namespace WorldRank;
+using WorldRank.Console.Enums;
 
-// Thrown when a deposit or withdrawal is attempted on a blocked wallet.
-public class WalletBlockedException : WalletException
+namespace WorldRank.Console.Exceptions
 {
-    public Currency Currency { get; }
+	public class WalletBlockedException : WalletException
+	{
+		public Currency Currency { get; }
 
-    public WalletBlockedException(Currency currency)
-        : base($"The {currency} wallet is blocked and cannot process transactions.")
-    {
-        Currency = currency;
-    }
+		public WalletBlockedException(Currency currency)
+			: base($"The {currency} wallet is blocked. Unblock it before performing this operation.")
+		{
+			Currency = currency;
+		}
+	}
 }

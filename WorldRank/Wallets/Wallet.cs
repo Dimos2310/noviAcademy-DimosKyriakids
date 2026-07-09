@@ -1,51 +1,64 @@
-namespace WorldRank;
+using WorldRank.Console.Enums;
+using WorldRank.Console.Exceptions;
 
-// Wallet: Balance changes only through Deposit/Withdraw, never goes negative,
-// and no transaction is allowed while the wallet is blocked
-public class Wallet : IWallet
+namespace WorldRank.Console
 {
-    public decimal Balance { get; private set; }
-    public Currency Currency { get; }
-    public bool IsBlocked { get; private set; }
+	public class Wallet : IWallet
+	{
+		public Currency Currency { get; }
+		public int PlayerId { get; }
+		public decimal Balance { get; private set; }
+		public bool IsBlocked { get; private set; }
 
-    public Wallet(Currency currency)
-    {
-        Currency = currency;
-        Balance = 0m;
-        IsBlocked = false;
-    }
+		public Wallet(int playerId, Currency currency, decimal balance, bool isBlocked = false)
+		{
+			PlayerId = playerId;
+			if (balance < 0)
+				throw new InsufficientFundsException(balance);
 
-    public void Deposit(decimal amount)
-    {
-        // Guard clauses: reject early, keep the happy path flat and last.
-        if (amount <= 0)
-            throw new InvalidAmountException(amount);
+			Balance = balance;
+			Currency = currency;
+			IsBlocked = isBlocked;
+		}
 
-        if (IsBlocked)
-            throw new WalletBlockedException(Currency);
+		public void Block() => IsBlocked = true;
 
-        Balance += amount;
-    }
+		public void Unblock() => IsBlocked = false;
 
-    public void Withdraw(decimal amount)
-    {
-        if (amount <= 0)
-            throw new InvalidAmountException(amount);
+		public void SetBalance(decimal balance)
+		{
+			if (balance < 0)
+				throw new InsufficientFundsException(balance);
 
-        if (IsBlocked)
-            throw new WalletBlockedException(Currency);
+			Balance = balance;
+		}
 
-        // Negative balance is a business rule violation -> custom WalletException
-        // that carries the balance and the requested amount as typed data.
-        if (amount > Balance)
-            throw new InsufficientFundsException(Currency, Balance, amount);
+		public void Deposit(decimal amount)
+		{
+			if (amount <= 0)
+				throw new InvalidAmountException(amount);
 
-        Balance -= amount;
-    }
+			if (IsBlocked)
+				throw new WalletBlockedException(Currency);
 
-    public void Block() => IsBlocked = true;
-    public void Unblock() => IsBlocked = false;
+			Balance += amount;
+		}
 
-    public override string ToString() =>
-        $"{Currency}: {Balance:0.00}{(IsBlocked ? " [BLOCKED]" : "")}";
+		public void Withdraw(decimal amount)
+		{
+			if (amount <= 0)
+				throw new InvalidAmountException(amount);
+
+			if (IsBlocked)
+				throw new WalletBlockedException(Currency);
+
+			var newBalance = Balance - amount;
+			if (newBalance < 0)
+				throw new InsufficientFundsException(newBalance);
+
+			Balance = newBalance;
+		}
+
+		public override string ToString() => $"Balance -> {Balance} Currency -> {Currency} IsBlocked -> {IsBlocked}";
+	}
 }

@@ -1,15 +1,16 @@
-namespace WorldRank;
-
-public enum Currency
+﻿namespace WorldRank.Console.Enums
 {
-    EUR,
-    USD,
-    BRL,
-    GBP,
-    CHF,
-    SEK,
-    PLN,
-    TRY,
-    ARS,
-    CLP
+	public enum Currency
+	{
+		EUR,
+		USD,
+		BRL,
+		GBP,
+		CHF,
+		SEK,
+		PLN,
+		TRY,
+		ARS,
+		CLP
+	}
 }

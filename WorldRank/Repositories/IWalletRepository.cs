@@ -1,20 +1,21 @@
-namespace WorldRank;
+using WorldRank.Console.Enums;
 
-public interface IWalletRepository
+namespace WorldRank.Console
 {
-    // Adding requires a concrete Wallet — IWallet has no way to construct one
-    void Add(Wallet wallet, int playerId);
+	public interface IWalletRepository
+	{
+		void Add(Wallet wallet);
 
-    // Reads traffic in IWallet, not the concrete Wallet
-    IEnumerable<IWallet> GetByPlayer(int playerId);
+		List<Wallet> GetAllWalletsByPlayerId(int playerId);
 
-    // Cascades a player deletion so wallets don't outlive their owner
-    void RemoveByPlayer(int playerId);
+		void UpdateBalance(int playerId, Currency currency, decimal newBalance);
 
-    // Mutations resolve the wallet by (playerId, currency) and log at this
-    // (service) layer, so every caller gets the audit trail for free.
-    void Deposit(int playerId, Currency currency, decimal amount);
-    void Withdraw(int playerId, Currency currency, decimal amount);
-    void Block(int playerId, Currency currency);
-    void Unblock(int playerId, Currency currency);
+		void Deposit(int playerId, Currency currency, decimal amount);
+
+		void Withdraw(int playerId, Currency currency, decimal amount);
+
+		void Block(int playerId, Currency currency);
+
+		void Unblock(int playerId, Currency currency);
+	}
 }

@@ -1,10 +1,11 @@
-namespace WorldRank;
-
-public interface IPlayer
+namespace WorldRank.Console
 {
-    int Id { get; }
-    string Name { get; }
-    int Score { get; }
+	public interface IPlayer
+	{
+		int Id { get; }
+		string Name { get; }
+		int Score { get; }
 
-    void AddScore(int points);
+		void AddScore(int points);
+	}
 }
