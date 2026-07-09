@@ -2,7 +2,7 @@ using WorldRank.Domain.Entities;
 
 namespace WorldRank.Application.Strategies;
 
-/// <summary>Adds funds - deposit, bonus.</summary>
+/// Adds funds - deposit, bonus.
 public class AddFundsStrategy : IFundsStrategy
 {
 	public FundsOperation Operation => FundsOperation.Add;

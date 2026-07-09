@@ -40,6 +40,7 @@ while (true)
 	Console.WriteLine("11. Block wallet");
 	Console.WriteLine("12. Unblock wallet");
 	Console.WriteLine("13. Update wallet balance");
+	Console.WriteLine("14. Apply funds operation (strategy)");
 	Console.WriteLine("0. Exit");
 	Console.Write("> ");
 
@@ -58,6 +59,7 @@ while (true)
 		"11" => BlockWallet,
 		"12" => UnblockWallet,
 		"13" => UpdateWalletBalance,
+		"14" => ApplyFundsOperation,
 		"0" => null,
 		_ => () => Console.WriteLine("Unknown option.")
 	};
@@ -116,6 +118,23 @@ decimal? PromptAmount(string label)
 
 	Console.WriteLine("Amount must be a number.");
 	return null;
+}
+
+FundsOperation? PromptFundsOperation()
+{
+	Console.Write("Give Funds Operation: 1 - Add | 2 - Subtract | 3 - ForceSubtract\n");
+	switch (Console.ReadLine())
+	{
+		case "1":
+			return FundsOperation.Add;
+		case "2":
+			return FundsOperation.Subtract;
+		case "3":
+			return FundsOperation.ForceSubtract;
+		default:
+			Console.WriteLine("Unknown funds operation.");
+			return null;
+	}
 }
 
 // Generates a random, unique player id (avoids collisions with already-registered players).
@@ -390,6 +409,31 @@ void UpdateWalletBalance()
 	{
 		walletRepository.UpdateBalance(playerId.Value, currency.Value, newBalance.Value);
 		Console.WriteLine("Balance updated.");
+	});
+}
+
+void ApplyFundsOperation()
+{
+	var playerId = PromptPlayerId();
+	if (playerId is null)
+		return;
+
+	var currency = PromptCurrency();
+	if (currency is null)
+		return;
+
+	var operation = PromptFundsOperation();
+	if (operation is null)
+		return;
+
+	var amount = PromptAmount("Amount");
+	if (amount is null)
+		return;
+
+	RunWalletOperation(() =>
+	{
+		walletService.ExecuteOperation(playerId.Value, currency.Value, amount.Value, operation.Value);
+		Console.WriteLine("Operation applied successfully.");
 	});
 }
 
