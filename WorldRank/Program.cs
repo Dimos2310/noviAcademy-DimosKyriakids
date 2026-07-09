@@ -12,7 +12,6 @@ IPlayerRepository playerRepository = new InMemoryPlayerRepository(walletReposito
 
 while (true)
 {
-    //Console.Clear();
     Console.WriteLine("========================================");
     Console.WriteLine("      WorldRank — Player Registry       ");
     Console.WriteLine("========================================");
@@ -35,56 +34,48 @@ while (true)
     var choice = Console.ReadLine();
     Console.WriteLine();
 
-    switch (choice)
+    if (choice == "12")
     {
-        case "1":
-            AddPlayer();
-            break;
-        case "2":
-            ListPlayers();
-            break;
-        case "3":
-            FindByName();
-            break;
-        case "4":
-            UpdateScore();
-            break;
-        case "5":
-            DeletePlayer();
-            break;
-        case "6":
-            GroupPlayersByScore();
-            break;
-        case "7":
-            AddWallet();
-            break;
-        case "8":
-            Deposit();
-            break;
-        case "9":
-            Withdraw();
-            break;
-        case "10":
-            ListWallets();
-            break;
-        case "11":
-            ToggleWalletBlock();
-            break;
-        case "12":
-            Console.WriteLine("Bye!");
-            logger.Info("App shutting down");
-            LogManager.Shutdown(); // flushes file writes before exit
-            return;
-        default:
-            Console.WriteLine("Invalid option, try again.");
-            break;
+        Console.WriteLine("Bye!");
+        logger.Info("App shutting down");
+        LogManager.Shutdown(); // flushes file writes before exit
+        return;
+    }
+
+    try
+    {
+        HandleChoice(choice);
+    }
+    catch (Exception ex)
+    {
+        // Safety net: log anything a specific handler didn't catch, keep the app alive.
+        logger.Error(ex, "Unexpected error while handling option {Choice}", choice);
+        Console.WriteLine($"Unexpected error: {ex.Message}");
     }
 
     Pause();
 }
 
-// Waits for Enter so the user can read the result
-// before the screen clears and the menu shows again.
+void HandleChoice(string? choice)
+{
+    switch (choice)
+    {
+        case "1": AddPlayer(); break;
+        case "2": ListPlayers(); break;
+        case "3": FindByName(); break;
+        case "4": UpdateScore(); break;
+        case "5": DeletePlayer(); break;
+        case "6": GroupPlayersByScore(); break;
+        case "7": AddWallet(); break;
+        case "8": Deposit(); break;
+        case "9": Withdraw(); break;
+        case "10": ListWallets(); break;
+        case "11": ToggleWalletBlock(); break;
+        default: Console.WriteLine("Invalid option, try again."); break;
+    }
+}
+
+// Waits for Enter so the user can read the result before the menu shows again.
 void Pause()
 {
     Console.WriteLine();
@@ -128,8 +119,8 @@ Currency? PromptForCurrency()
     return currency;
 }
 
-// Resolves a player + currency to one of that player's wallets
-IWallet? PromptForWallet()
+// Prompts for a player + currency (both must resolve), or null.
+(IPlayer Player, Currency Currency)? PromptForPlayerAndCurrency()
 {
     var player = PromptForPlayer();
     if (player is null) return null;
@@ -137,13 +128,22 @@ IWallet? PromptForWallet()
     var currency = PromptForCurrency();
     if (currency is null) return null;
 
-    var wallet = walletRepository.GetByPlayer(player.Id)
-        .FirstOrDefault(w => w.Currency == currency);
+    return (player, currency.Value);
+}
 
-    if (wallet is null)
-        Console.WriteLine($"{player.Name} has no {currency} wallet.");
-
-    return wallet;
+// Runs a wallet operation, turning any domain failure into a friendly message
+// + a Warn log. The repository already logged the success path.
+void RunWalletOperation(Action operation)
+{
+    try
+    {
+        operation();
+    }
+    catch (Exception ex) when (ex is WalletException or ArgumentOutOfRangeException)
+    {
+        logger.Warn(ex, "Wallet operation failed");
+        Console.WriteLine($"Error: {ex.Message}");
+    }
 }
 
 void AddPlayer()
@@ -167,11 +167,11 @@ void AddPlayer()
         return;
     }
 
-    // The constructor generates the Id and starts the score at 0
+    // The constructor generates the Id and starts the score at 0.
+    // The repository logs the addition at the service layer.
     var player = new Player(name);
     playerRepository.AddPlayer(player);
     Console.WriteLine($"Added: {player}");
-    logger.Info("Player added: {Player}", player);
 }
 
 void ListPlayers()
@@ -186,9 +186,7 @@ void ListPlayers()
 
     Console.WriteLine("--- Players ---");
     foreach (var player in players)
-    {
         Console.WriteLine(player);
-    }
 }
 
 void FindByName()
@@ -222,9 +220,9 @@ void DeletePlayer()
     var player = PromptForPlayer();
     if (player is null) return;
 
+    // The repository logs the deletion (and cascades the wallets).
     playerRepository.DeletePlayer(player.Id);
     Console.WriteLine($"Deleted: {player.Name}");
-    logger.Info("Player deleted: {PlayerId} ({Name})", player.Id, player.Name);
 }
 
 void GroupPlayersByScore()
@@ -249,31 +247,22 @@ void GroupPlayersByScore()
 
 void AddWallet()
 {
-    var player = PromptForPlayer();
-    if (player is null) return;
+    var pc = PromptForPlayerAndCurrency();
+    if (pc is null) return;
+    var (player, currency) = pc.Value;
 
-    var currency = PromptForCurrency();
-    if (currency is null) return;
-
-    try
+    RunWalletOperation(() =>
     {
-        walletRepository.Add(new Wallet(currency.Value), player.Id);
+        walletRepository.Add(new Wallet(currency), player.Id);
         Console.WriteLine($"Added {currency} wallet to {player.Name}.");
-        logger.Info("Wallet added for player {PlayerId} in {Currency}", player.Id, currency);
-    }
-    catch (DuplicateWalletException ex)
-    {
-        // Expected & recoverable: the user picked a currency they already have.
-        Console.WriteLine(ex.Message);
-        logger.Warn("Duplicate wallet rejected for player {PlayerId} in {Currency}",
-            ex.PlayerId, ex.Currency);
-    }
+    });
 }
 
 void Deposit()
 {
-    var wallet = PromptForWallet();
-    if (wallet is null) return;
+    var pc = PromptForPlayerAndCurrency();
+    if (pc is null) return;
+    var (player, currency) = pc.Value;
 
     Console.Write("Amount to deposit: ");
     if (!decimal.TryParse(Console.ReadLine(), out var amount))
@@ -282,30 +271,18 @@ void Deposit()
         return;
     }
 
-    try
+    RunWalletOperation(() =>
     {
-        wallet.Deposit(amount);
-        Console.WriteLine($"New balance: {wallet}");
-        logger.Info("Deposit of {Amount} into {Currency} wallet succeeded", amount, wallet.Currency);
-    }
-    catch (WalletBlockedException ex)
-    {
-        // Business rule violated -> custom exception, logged with typed data.
-        Console.WriteLine(ex.Message);
-        logger.Warn(ex, "Deposit blocked on {Currency} wallet", ex.Currency);
-    }
-    catch (ArgumentOutOfRangeException ex)
-    {
-        // Caller misused the API (non-positive amount).
-        Console.WriteLine("Deposit amount must be positive.");
-        logger.Warn(ex, "Invalid deposit amount {Amount} on {Currency} wallet", amount, wallet.Currency);
-    }
+        walletRepository.Deposit(player.Id, currency, amount);
+        Console.WriteLine("Deposit successful.");
+    });
 }
 
 void Withdraw()
 {
-    var wallet = PromptForWallet();
-    if (wallet is null) return;
+    var pc = PromptForPlayerAndCurrency();
+    if (pc is null) return;
+    var (player, currency) = pc.Value;
 
     Console.Write("Amount to withdraw: ");
     if (!decimal.TryParse(Console.ReadLine(), out var amount))
@@ -314,29 +291,11 @@ void Withdraw()
         return;
     }
 
-    try
+    RunWalletOperation(() =>
     {
-        wallet.Withdraw(amount);
-        Console.WriteLine($"New balance: {wallet}");
-        logger.Info("Withdrawal of {Amount} from {Currency} wallet succeeded", amount, wallet.Currency);
-    }
-    catch (InsufficientFundsException ex)
-    {
-        // Most specific first: carries Balance + RequestedAmount as typed data.
-        Console.WriteLine(ex.Message);
-        logger.Warn("Withdrawal declined: {Requested} requested but only {Balance} in {Currency} wallet",
-            ex.RequestedAmount, ex.Balance, ex.Currency);
-    }
-    catch (WalletBlockedException ex)
-    {
-        Console.WriteLine(ex.Message);
-        logger.Warn(ex, "Withdrawal blocked on {Currency} wallet", ex.Currency);
-    }
-    catch (ArgumentOutOfRangeException ex)
-    {
-        Console.WriteLine("Withdrawal amount must be positive.");
-        logger.Warn(ex, "Invalid withdrawal amount {Amount} on {Currency} wallet", amount, wallet.Currency);
-    }
+        walletRepository.Withdraw(player.Id, currency, amount);
+        Console.WriteLine("Withdrawal successful.");
+    });
 }
 
 void ListWallets()
@@ -354,24 +313,35 @@ void ListWallets()
 
     Console.WriteLine($"--- {player.Name}'s wallets ---");
     foreach (var wallet in wallets)
-    {
         Console.WriteLine(wallet);
-    }
 }
 
 void ToggleWalletBlock()
 {
-    var wallet = PromptForWallet();
-    if (wallet is null) return;
+    var pc = PromptForPlayerAndCurrency();
+    if (pc is null) return;
+    var (player, currency) = pc.Value;
 
-    if (wallet.IsBlocked)
+    var wallet = walletRepository.GetByPlayer(player.Id)
+        .FirstOrDefault(w => w.Currency == currency);
+
+    if (wallet is null)
     {
-        wallet.Unblock();
-        Console.WriteLine($"Unblocked: {wallet}");
+        Console.WriteLine($"{player.Name} has no {currency} wallet.");
+        return;
     }
-    else
+
+    RunWalletOperation(() =>
     {
-        wallet.Block();
-        Console.WriteLine($"Blocked: {wallet}");
-    }
+        if (wallet.IsBlocked)
+        {
+            walletRepository.Unblock(player.Id, currency);
+            Console.WriteLine("Wallet unblocked.");
+        }
+        else
+        {
+            walletRepository.Block(player.Id, currency);
+            Console.WriteLine("Wallet blocked.");
+        }
+    });
 }
