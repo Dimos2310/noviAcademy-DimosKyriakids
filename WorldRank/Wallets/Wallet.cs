@@ -18,11 +18,9 @@ public class Wallet : IWallet
     public void Deposit(decimal amount)
     {
         // Guard clauses: reject early, keep the happy path flat and last.
-        // amount <= 0 is a CALLER bug -> ArgumentOutOfRangeException.
         if (amount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(amount), "Deposit amount must be positive.");
+            throw new InvalidAmountException(amount);
 
-        // Blocked is a BUSINESS rule violation -> custom WalletException.
         if (IsBlocked)
             throw new WalletBlockedException(Currency);
 
@@ -32,7 +30,7 @@ public class Wallet : IWallet
     public void Withdraw(decimal amount)
     {
         if (amount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(amount), "Withdraw amount must be positive.");
+            throw new InvalidAmountException(amount);
 
         if (IsBlocked)
             throw new WalletBlockedException(Currency);

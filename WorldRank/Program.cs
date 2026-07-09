@@ -139,7 +139,7 @@ void RunWalletOperation(Action operation)
     {
         operation();
     }
-    catch (Exception ex) when (ex is WalletException or ArgumentOutOfRangeException)
+    catch (WalletException ex)
     {
         logger.Warn(ex, "Wallet operation failed");
         Console.WriteLine($"Error: {ex.Message}");
@@ -251,11 +251,26 @@ void AddWallet()
     if (pc is null) return;
     var (player, currency) = pc.Value;
 
-    RunWalletOperation(() =>
+    try
     {
+        // Defence in depth: don't blindly trust that the resolved player
+        // still exists in the repository before we attach a wallet to it.
+        if (playerRepository.FindPlayer(player.Id) is null)
+            throw new PlayerNotFoundException(player.Id);
+
         walletRepository.Add(new Wallet(currency), player.Id);
         Console.WriteLine($"Added {currency} wallet to {player.Name}.");
-    });
+    }
+    catch (PlayerNotFoundException ex)
+    {
+        logger.Warn(ex, "Could not add wallet: player {PlayerId} not found", player.Id);
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+    catch (WalletException ex)
+    {
+        logger.Warn(ex, "Could not add wallet for player {PlayerId} in {Currency}", player.Id, currency);
+        Console.WriteLine($"Error: {ex.Message}");
+    }
 }
 
 void Deposit()
