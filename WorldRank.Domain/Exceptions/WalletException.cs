@@ -1,4 +1,4 @@
-namespace WorldRank.Console.Exceptions
+namespace WorldRank.Domain.Exceptions
 {
 	public abstract class WalletException : Exception
 	{

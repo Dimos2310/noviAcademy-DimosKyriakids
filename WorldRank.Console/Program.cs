@@ -1,7 +1,8 @@
 using NLog;
 using WorldRank.Console;
-using WorldRank.Console.Enums;
-using WorldRank.Console.Exceptions;
+using WorldRank.Domain.Entities;
+using WorldRank.Domain.Enums;
+using WorldRank.Domain.Exceptions;
 
 var logger = LogManager.GetCurrentClassLogger();
 
