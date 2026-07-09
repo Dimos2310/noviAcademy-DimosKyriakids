@@ -3,5 +3,13 @@ namespace WorldRank;
 public enum Currency
 {
     EUR,
-    USD
+    USD,
+    BRL,
+    GBP,
+    CHF,
+    SEK,
+    PLN,
+    TRY,
+    ARS,
+    CLP
 }
