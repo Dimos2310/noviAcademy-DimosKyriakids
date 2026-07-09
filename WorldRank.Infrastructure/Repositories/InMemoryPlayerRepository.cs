@@ -1,5 +1,5 @@
 using NLog;
-using WorldRank.Application.Repositories;
+using WorldRank.Application.Interfaces;
 using WorldRank.Domain.Entities;
 
 namespace WorldRank.Infrastructure.Repositories

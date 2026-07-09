@@ -1,15 +1,24 @@
+using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using WorldRank.Application.Repositories;
+using WorldRank.Application;
+using WorldRank.Application.Interfaces;
+using WorldRank.Application.Strategies;
 using WorldRank.Domain.Entities;
 using WorldRank.Domain.Enums;
 using WorldRank.Domain.Exceptions;
-using WorldRank.Infrastructure.Repositories;
+using WorldRank.Infrastructure;
 
 var logger = LogManager.GetCurrentClassLogger();
 
-//Wallets are stored in their own repository and reference the player via PlayerId
-IWalletRepository walletRepository = new InMemoryWalletRepository();
-IPlayerRepository playerRepository = new InMemoryPlayerRepository();
+// Configure dependency injection
+var serviceProvider = new ServiceCollection()
+	.AddInfrastructure()
+	.AddApplication()
+	.BuildServiceProvider();
+
+IWalletRepository walletRepository = serviceProvider.GetRequiredService<IWalletRepository>();
+IPlayerRepository playerRepository = serviceProvider.GetRequiredService<IPlayerRepository>();
+IWalletService walletService = serviceProvider.GetRequiredService<IWalletService>();
 
 logger.Info("Application started.");
 
@@ -303,7 +312,7 @@ void DepositToWallet()
 
 	RunWalletOperation(() =>
 	{
-		walletRepository.Deposit(playerId.Value, currency.Value, amount.Value);
+		walletService.ExecuteOperation(playerId.Value, currency.Value, amount.Value, FundsOperation.Add);
 		Console.WriteLine("Deposit successful.");
 	});
 }
@@ -324,7 +333,7 @@ void WithdrawFromWallet()
 
 	RunWalletOperation(() =>
 	{
-		walletRepository.Withdraw(playerId.Value, currency.Value, amount.Value);
+		walletService.ExecuteOperation(playerId.Value, currency.Value, amount.Value, FundsOperation.Subtract);
 		Console.WriteLine("Withdrawal successful.");
 	});
 }
