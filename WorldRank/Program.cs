@@ -104,15 +104,20 @@ IPlayer? PromptForPlayer(string label = "Player name: ")
     return player;
 }
 
-// Prompts for a currency and parses it, or null if invalid
+// Prompts for a currency and parses it, or null if invalid.
+// The list of valid codes is derived from the enum, so it stays correct
+// no matter how many currencies exist.
 Currency? PromptForCurrency()
 {
-    Console.Write("Currency (EUR/USD): ");
+    var validCodes = string.Join("/", Enum.GetNames<Currency>());
+    Console.Write($"Currency ({validCodes}): ");
     var input = Console.ReadLine()?.Trim() ?? string.Empty;
 
-    if (!Enum.TryParse<Currency>(input, ignoreCase: true, out var currency))
+    // Enum.TryParse also accepts raw numbers, so reject anything not defined.
+    if (!Enum.TryParse<Currency>(input, ignoreCase: true, out var currency)
+        || !Enum.IsDefined(currency))
     {
-        Console.WriteLine("Unknown currency. Use EUR or USD.");
+        Console.WriteLine($"Unknown currency. Use one of: {validCodes}.");
         return null;
     }
 
