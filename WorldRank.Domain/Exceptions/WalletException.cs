@@ -1,6 +1,6 @@
 namespace WorldRank.Domain.Exceptions
 {
-	public abstract class WalletException : Exception
+	public abstract class WalletException : WorldRankException
 	{
 		protected WalletException(string message) : base(message)
 		{

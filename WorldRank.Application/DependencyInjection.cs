@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using WorldRank.Application.Interfaces;
 using WorldRank.Application.Services;
 using WorldRank.Application.Strategies;
 
@@ -9,11 +8,15 @@ public static class DependencyInjection
 {
 	public static IServiceCollection AddApplication(this IServiceCollection services)
 	{
-		services.AddScoped<IWalletService, WalletService>();
+		// All strategies are registered under the same interface. The caller resolves
+		// them as a collection and picks the one whose Operation matches - no factory.
+		services.AddSingleton<IFundsStrategy, AddFundsStrategy>();
+		services.AddSingleton<IFundsStrategy, SubtractFundsStrategy>();
+		services.AddSingleton<IFundsStrategy, ForceSubtractFundsStrategy>();
 
-		services.AddScoped<IFundsStrategy, AddFundsStrategy>();
-		services.AddScoped<IFundsStrategy, SubtractFundsStrategy>();
-		services.AddScoped<IFundsStrategy, ForceSubtractFundsStrategy>();
+		// Application services that drive the menu use-cases.
+		services.AddSingleton<PlayerService>();
+		services.AddSingleton<WalletService>();
 
 		return services;
 	}
