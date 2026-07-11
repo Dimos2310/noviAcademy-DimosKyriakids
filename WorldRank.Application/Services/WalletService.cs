@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using WorldRank.Application.Interfaces;
 using WorldRank.Application.Strategies;
@@ -46,7 +49,7 @@ public class WalletService
 			if (_playerRepository.FindPlayer(playerId.Value) is null)
 				throw new PlayerNotFoundException(playerId.Value);
 
-			var wallet = new Wallet(playerId.Value, currency.Value, balance.Value);
+			var wallet = new Wallet(GenerateWalletId(), playerId.Value, currency.Value, balance.Value);
 			_walletRepository.Add(wallet);
 			Console.WriteLine("Wallet added successfully.");
 		}
@@ -96,7 +99,7 @@ public class WalletService
 
 		RunWalletOperation(() =>
 		{
-			ApplyStrategy(FundsOperation.Add, playerId.Value, currency.Value, amount.Value);
+			_walletRepository.Deposit(playerId.Value, currency.Value, amount.Value);
 			Console.WriteLine("Deposit successful.");
 		});
 	}
@@ -117,7 +120,7 @@ public class WalletService
 
 		RunWalletOperation(() =>
 		{
-			ApplyStrategy(FundsOperation.Subtract, playerId.Value, currency.Value, amount.Value);
+			_walletRepository.Withdraw(playerId.Value, currency.Value, amount.Value);
 			Console.WriteLine("Withdrawal successful.");
 		});
 	}
@@ -177,7 +180,7 @@ public class WalletService
 		});
 	}
 
-	public void ApplyFundsOperation()
+	public void ApplyFundsStrategy()
 	{
 		var playerId = Prompts.PromptPlayerId();
 		if (playerId is null)
@@ -195,21 +198,17 @@ public class WalletService
 		if (amount is null)
 			return;
 
+		// Pick the strategy that matches the chosen operation (resolved from DI, no factory).
+		var strategy = _fundsStrategies[operation.Value];
+
 		RunWalletOperation(() =>
 		{
-			ApplyStrategy(operation.Value, playerId.Value, currency.Value, amount.Value);
+			var wallet = _walletRepository.GetWallet(playerId.Value, currency.Value);
+			strategy.Execute(wallet, amount.Value);
+			_logger.LogInformation("Applied {Strategy} of {Amount} to player {PlayerId} {Currency} wallet (balance {Balance})",
+				strategy.GetType().Name, amount, playerId, currency, wallet.Balance);
 			Console.WriteLine($"{operation} operation applied.");
 		});
-	}
-
-	// Resolves the wallet and runs the strategy registered for the given operation.
-	private void ApplyStrategy(FundsOperation operation, int playerId, Domain.Enums.Currency currency, decimal amount)
-	{
-		var wallet = _walletRepository.GetWallet(playerId, currency);
-		var strategy = _fundsStrategies[operation];
-		strategy.Execute(wallet, amount);
-		_logger.LogInformation("Applied {Strategy} of {Amount} to player {PlayerId} {Currency} wallet (balance {Balance})",
-			strategy.GetType().Name, amount, playerId, currency, wallet.Balance);
 	}
 
 	// Runs a wallet operation and turns any domain (WalletException) failure into a friendly message + log.
@@ -224,5 +223,19 @@ public class WalletService
 			_logger.LogWarning(ex, "Wallet operation failed");
 			Console.WriteLine($"Error: {ex.Message}");
 		}
+	}
+
+	private int GenerateWalletId()
+	{
+		var existingIds = _walletRepository.GetAll().Select(p => p.Id).ToHashSet();
+
+		int id;
+		do
+		{
+			id = Random.Shared.Next(1, int.MaxValue);
+		}
+		while (existingIds.Contains(id));
+
+		return id;
 	}
 }

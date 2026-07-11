@@ -6,6 +6,18 @@ public class Player : IPlayer
 	public string Name { get; private set; }
 	public int Score { get; private set; }
 
+	public Player()
+	{
+
+	}
+
+	public Player(int id, string name, int score)
+	{
+		Id = id;
+		Name = name;
+		Score = score;
+	}
+
 	public Player(int id, string name)
 	{
 		if (string.IsNullOrWhiteSpace(name))

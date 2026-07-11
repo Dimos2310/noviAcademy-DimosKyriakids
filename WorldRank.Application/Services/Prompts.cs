@@ -1,3 +1,4 @@
+using System;
 using WorldRank.Application.Strategies;
 using WorldRank.Domain.Enums;
 
@@ -18,17 +19,17 @@ public static class Prompts
 
 	public static Currency? PromptCurrency()
 	{
-		var validCodes = string.Join("/", Enum.GetNames<Currency>());
-		Console.Write($"Currency ({validCodes}): ");
-		var input = Console.ReadLine()?.Trim() ?? string.Empty;
-
-		if (!Enum.TryParse<Currency>(input, ignoreCase: true, out var currency) || !Enum.IsDefined(currency))
+		Console.Write("Give Currency: 1 - EUR | 2 - USD\n");
+		switch (Console.ReadLine())
 		{
-			Console.WriteLine($"Unknown currency. Use one of: {validCodes}.");
-			return null;
+			case "1":
+				return Currency.EUR;
+			case "2":
+				return Currency.USD;
+			default:
+				Console.WriteLine("Unknown currency.");
+				return null;
 		}
-
-		return currency;
 	}
 
 	public static decimal? PromptAmount(string label)

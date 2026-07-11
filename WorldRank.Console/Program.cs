@@ -53,7 +53,7 @@ while (true)
 		"11" => walletService.BlockWallet,
 		"12" => walletService.UnblockWallet,
 		"13" => walletService.UpdateWalletBalance,
-		"14" => walletService.ApplyFundsOperation,
+		"14" => walletService.ApplyFundsStrategy,
 		"0" => null,
 		_ => () => Console.WriteLine("Unknown option.")
 	};

@@ -1,6 +1,6 @@
 namespace WorldRank.Domain.Exceptions
 {
-	public class PlayerNotFoundException : Exception
+	public class PlayerNotFoundException : WorldRankException
 	{
 		public int PlayerId { get; }
 

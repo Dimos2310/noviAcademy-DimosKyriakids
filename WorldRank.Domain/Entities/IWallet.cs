@@ -1,21 +1,18 @@
 using WorldRank.Domain.Enums;
 
-namespace WorldRank.Domain.Entities
-{
-	public interface IWallet
-	{
-		int PlayerId { get; }
-		Currency Currency { get; }
-		decimal Balance { get; }
-		bool IsBlocked { get; }
+namespace WorldRank.Domain.Entities;
 
-		void Block();
-		void Unblock();
-		void SetBalance(decimal balance);
-		void Deposit(decimal amount);
-		void Withdraw(decimal amount);
-		void AddFunds(decimal amount);
-		void SubtractFunds(decimal amount);
-		void ForceSubtractFunds(decimal amount);
-	}
+public interface IWallet
+{
+	int PlayerId { get; }
+	Currency Currency { get; }
+	decimal Balance { get; }
+	bool IsBlocked { get; }
+
+	void Block();
+	void Unblock();
+	void SetBalance(decimal balance);
+	void Deposit(decimal amount);
+	void Withdraw(decimal amount);
+	void ForceSubtractFunds(decimal amount);
 }

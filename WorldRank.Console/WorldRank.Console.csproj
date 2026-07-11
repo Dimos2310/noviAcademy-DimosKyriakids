@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="NLog.Extensions.Logging" Version="6.1.4" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
   </ItemGroup>
 
   <ItemGroup>
