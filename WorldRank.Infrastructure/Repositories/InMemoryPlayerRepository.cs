@@ -17,8 +17,12 @@ public class InMemoryPlayerRepository : IPlayerRepository
 
 	public void AddPlayer(Player player)
 	{
-		_players.Add(player);
-		_logger.LogInformation("Player {PlayerId} ({Name}) added with score {Score}", player.Id, player.Name, player.Score);
+		// Assign the next id here: the store owns id generation, not the service.
+		var id = _players.Count == 0 ? 1 : _players.Max(item => item.Id) + 1;
+		var stored = new Player(id, player.Name, player.Score);
+
+		_players.Add(stored);
+		_logger.LogInformation("Player {PlayerId} ({Name}) added with score {Score}", stored.Id, stored.Name, stored.Score);
 	}
 
 	public IEnumerable<Player> GetAllPlayers()

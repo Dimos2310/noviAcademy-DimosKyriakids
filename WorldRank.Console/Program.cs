@@ -3,6 +3,7 @@ using NLog;
 using WorldRank.Application.Services;
 using WorldRank.Console;
 using WorldRank.Domain.Exceptions;
+using WorldRank.Infrastructure;
 
 var logger = LogManager.GetCurrentClassLogger();
 
@@ -11,6 +12,9 @@ var services = new ServiceCollection();
 services.AddWorldRank();
 
 using var provider = services.BuildServiceProvider();
+
+// Create the database and its schema on first run (no-op when running in-memory).
+provider.InitializeDatabase();
 
 var playerService = provider.GetRequiredService<PlayerService>();
 var walletService = provider.GetRequiredService<WalletService>();

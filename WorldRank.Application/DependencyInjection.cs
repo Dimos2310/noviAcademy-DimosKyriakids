@@ -15,8 +15,9 @@ public static class DependencyInjection
 		services.AddSingleton<IFundsStrategy, ForceSubtractFundsStrategy>();
 
 		// Application services that drive the menu use-cases.
-		services.AddSingleton<PlayerService>();
-		services.AddSingleton<WalletService>();
+		// Register as Scoped because they consume repositories which can be database-backed Scoped services.
+		services.AddScoped<PlayerService>();
+		services.AddScoped<WalletService>();
 
 		return services;
 	}

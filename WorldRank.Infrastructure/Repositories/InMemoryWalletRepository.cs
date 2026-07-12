@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WorldRank.Application.Interfaces;
+using WorldRank.Application.Strategies;
 using WorldRank.Domain.Entities;
 using WorldRank.Domain.Enums;
 using WorldRank.Domain.Exceptions;
@@ -26,8 +27,20 @@ public class InMemoryWalletRepository : IWalletRepository
 			throw new DuplicateWalletException(wallet.PlayerId, wallet.Currency);
 		}
 
-		_wallets.Add(wallet);
-		_logger.LogInformation("Wallet created for player {PlayerId} in {Currency} with balance {Balance}", wallet.PlayerId, wallet.Currency, wallet.Balance);
+		// Assign the next id here: the store owns id generation, not the service.
+		var id = _wallets.Count == 0 ? 1 : _wallets.Max(item => item.Id) + 1;
+		var stored = new Wallet(id, wallet.PlayerId, wallet.Currency, wallet.Balance, wallet.IsBlocked);
+
+		_wallets.Add(stored);
+		_logger.LogInformation("Wallet created for player {PlayerId} in {Currency} with balance {Balance}", stored.PlayerId, stored.Currency, stored.Balance);
+	}
+
+	public void ApplyStrategy(int playerId, Currency currency, IFundsStrategy strategy, decimal amount)
+	{
+		var wallet = GetWallet(playerId, currency);
+		strategy.Execute(wallet, amount);
+		_logger.LogInformation("Applied {Strategy} of {Amount} to player {PlayerId} {Currency} wallet (balance {Balance})",
+			strategy.GetType().Name, amount, playerId, currency, wallet.Balance);
 	}
 
 	public Wallet[] GetAll()
