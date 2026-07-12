@@ -5,9 +5,9 @@ namespace WorldRank.Domain.Entities;
 
 public class Wallet : IWallet
 {
-	public int Id { get; }
-	public Currency Currency { get; }
-	public int PlayerId { get; }
+	public int Id { get; private set; }
+	public Currency Currency { get; private set; }
+	public int PlayerId { get; private set; }
 	public decimal Balance { get; private set; }
 	public bool IsBlocked { get; private set; }
 
@@ -25,6 +25,17 @@ public class Wallet : IWallet
 		Balance = balance;
 		Currency = currency;
 		IsBlocked = isBlocked;
+	}
+
+	// Creates a new wallet without an id: the store (database identity or the
+	// in-memory repository) assigns it when the wallet is persisted.
+	public Wallet(int playerId, Currency currency, decimal balance)
+	{
+		if (balance < 0)
+			throw new InsufficientFundsException(balance);
+		PlayerId = playerId;
+		Balance = balance;
+		Currency = currency;
 	}
 
 	public void Block() => IsBlocked = true;

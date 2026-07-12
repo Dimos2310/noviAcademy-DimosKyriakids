@@ -2,7 +2,7 @@ namespace WorldRank.Domain.Entities;
 
 public class Player : IPlayer
 {
-	public int Id { get; }
+	public int Id { get; private set; }
 	public string Name { get; private set; }
 	public int Score { get; private set; }
 
@@ -24,6 +24,17 @@ public class Player : IPlayer
 			throw new ArgumentException("Name cannot be empty.", nameof(name));
 
 		Id = id;
+		Name = name;
+		Score = 0;
+	}
+
+	// Creates a new player without an id: the store (database identity or the
+	// in-memory repository) assigns it when the player is persisted.
+	public Player(string name)
+	{
+		if (string.IsNullOrWhiteSpace(name))
+			throw new ArgumentException("Name cannot be empty.", nameof(name));
+
 		Name = name;
 		Score = 0;
 	}
