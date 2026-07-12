@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using WorldRank.Application.Interfaces;
 using WorldRank.Application.Strategies;
 using WorldRank.Domain.Entities;
@@ -13,18 +12,15 @@ public class WalletService
 {
 	private readonly IWalletRepository _walletRepository;
 	private readonly IPlayerRepository _playerRepository;
-	private readonly ILogger<WalletService> _logger;
 	private readonly IReadOnlyDictionary<FundsOperation, IFundsStrategy> _fundsStrategies;
 
 	public WalletService(
 		IWalletRepository walletRepository,
 		IPlayerRepository playerRepository,
-		IEnumerable<IFundsStrategy> strategies,
-		ILogger<WalletService> logger)
+		IEnumerable<IFundsStrategy> strategies)
 	{
 		_walletRepository = walletRepository;
 		_playerRepository = playerRepository;
-		_logger = logger;
 
 		// Index every registered strategy by the operation it implements.
 		_fundsStrategies = strategies.ToDictionary(strategy => strategy.Operation);
@@ -35,7 +31,8 @@ public class WalletService
 		if (_playerRepository.FindPlayer(playerId) is null)
 			throw new PlayerNotFoundException(playerId);
 
-		var wallet = new Wallet(GenerateWalletId(), playerId, currency, initialBalance);
+		// No id here: the store (database identity or in-memory repository) assigns it.
+		var wallet = new Wallet(playerId, currency, initialBalance);
 		_walletRepository.Add(wallet);
 	}
 
@@ -74,25 +71,8 @@ public class WalletService
 		// Pick the strategy that matches the chosen operation (resolved from DI, no factory).
 		var strategy = _fundsStrategies[operation];
 
-		var wallet = _walletRepository.GetWallet(playerId, currency);
-		strategy.Execute(wallet, amount);
-
-		_logger.LogInformation("Applied {Strategy} of {Amount} to player {PlayerId} {Currency} wallet (balance {Balance})",
-			strategy.GetType().Name, amount, playerId, currency, wallet.Balance);
-	}
-
-	// Generates a random, unique wallet id (avoids collisions with existing wallets).
-	private int GenerateWalletId()
-	{
-		var existingIds = _walletRepository.GetAll().Select(w => w.Id).ToHashSet();
-
-		int id;
-		do
-		{
-			id = Random.Shared.Next(1, int.MaxValue);
-		}
-		while (existingIds.Contains(id));
-
-		return id;
+		// The repository applies the strategy and persists it, just like Deposit/Withdraw,
+		// so there is no separate "save" step for the caller to remember.
+		_walletRepository.ApplyStrategy(playerId, currency, strategy, amount);
 	}
 }

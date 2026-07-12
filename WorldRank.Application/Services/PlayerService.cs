@@ -16,7 +16,9 @@ public class PlayerService
 
 	public Player AddPlayer(string name, int score)
 	{
-		var player = new Player(GeneratePlayerId(), name);
+		// The id is assigned by the store (database identity or the in-memory
+		// repository), so the service never generates one itself.
+		var player = new Player(name);
 		player.AddScore(score);
 		_playerRepository.AddPlayer(player);
 		return player;
@@ -46,20 +48,5 @@ public class PlayerService
 	public void DeletePlayer(int playerId)
 	{
 		_playerRepository.DeletePlayer(playerId);
-	}
-
-	// Generates a random, unique player id (avoids collisions with already-registered players).
-	private int GeneratePlayerId()
-	{
-		var existingIds = _playerRepository.GetAllPlayers().Select(p => p.Id).ToHashSet();
-
-		int id;
-		do
-		{
-			id = Random.Shared.Next(1, int.MaxValue);
-		}
-		while (existingIds.Contains(id));
-
-		return id;
 	}
 }

@@ -1,3 +1,4 @@
+using WorldRank.Application.Strategies;
 using WorldRank.Domain.Entities;
 using WorldRank.Domain.Enums;
 
@@ -21,4 +22,8 @@ public interface IWalletRepository
 	void Block(int playerId, Currency currency);
 
 	void Unblock(int playerId, Currency currency);
+
+	// Applies a funds strategy to a wallet and persists the result in one step,
+	// so every mutating operation self-saves (no separate Save() to remember).
+	void ApplyStrategy(int playerId, Currency currency, IFundsStrategy strategy, decimal amount);
 }
