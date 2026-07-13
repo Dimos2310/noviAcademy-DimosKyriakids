@@ -8,7 +8,7 @@ namespace WorldRank.Application.Services;
 
 // Use-case logic only. No console / presentation concerns: inputs come in as
 // parameters, failures surface as domain exceptions for the caller to handle.
-public class WalletService
+public class WalletService : IWalletService
 {
 	private readonly IWalletRepository _walletRepository;
 	private readonly IPlayerRepository _playerRepository;

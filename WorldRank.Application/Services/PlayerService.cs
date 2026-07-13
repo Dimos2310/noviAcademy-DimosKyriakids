@@ -5,7 +5,7 @@ namespace WorldRank.Application.Services;
 
 // Use-case logic only. No console / presentation concerns: inputs come in as
 // parameters, results are returned, failures surface as domain exceptions.
-public class PlayerService
+public class PlayerService : IPlayerService
 {
 	private readonly IPlayerRepository _playerRepository;
 
