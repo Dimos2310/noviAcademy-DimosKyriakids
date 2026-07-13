@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using WorldRand;
 using WorldRank.Application.Interfaces;
 using WorldRank.Application.Services;
+using WorldRank.Application.Strategies;
 using WorldRank.Infrastructure.Persistence.Context;
 using WorldRank.Infrastructure.Repositories;
 
@@ -23,11 +24,17 @@ builder.Services.AddScoped<IPlayerRepository, DBPlayerRepository>();
 builder.Services.AddScoped<IWalletRepository, DBWalletRepository>();
 
 // Single-instance in-memory cache (Day 6). Redis would replace this behind a load balancer.
-//builder.Services.AddMemoryCache();
+builder.Services.AddMemoryCache();
 
 // The services own the caching (read-through + write-through) and reach the DB via the repositories.
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IPlayerService, PlayerService>();
+
+// All strategies are registered under the same interface; WalletService resolves them
+// as a collection and picks the one whose Operation matches - no factory.
+builder.Services.AddSingleton<IFundsStrategy, AddFundsStrategy>();
+builder.Services.AddSingleton<IFundsStrategy, SubtractFundsStrategy>();
+builder.Services.AddSingleton<IFundsStrategy, ForceSubtractFundsStrategy>();
 
 // Accept/emit enums (e.g. Currency) as their string names, not numbers.
 builder.Services.AddControllers()
