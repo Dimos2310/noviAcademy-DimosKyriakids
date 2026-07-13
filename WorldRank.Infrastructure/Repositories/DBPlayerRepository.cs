@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WorldRank.Application.Interfaces;
@@ -20,21 +17,21 @@ public class DBPlayerRepository : IPlayerRepository
 		_logger = logger;
 	}
 
-	public void AddPlayer(Player player)
+	public async Task AddPlayerAsync(Player player, CancellationToken cancellationToken = default)
 	{
 		_context.Players.Add(player);
-		_context.SaveChanges();
+		await _context.SaveChangesAsync(cancellationToken);
 		_logger.LogInformation("Player {PlayerId} ({Name}) added to database with score {Score}", player.Id, player.Name, player.Score);
 	}
 
-	public IEnumerable<Player> GetAllPlayers()
+	public async Task<IReadOnlyList<Player>> GetAllPlayersAsync(CancellationToken cancellationToken = default)
 	{
-		return _context.Players.AsNoTracking().ToList();
+		return await _context.Players.AsNoTracking().ToListAsync(cancellationToken);
 	}
 
-	public void DeletePlayer(int playerId)
+	public async Task DeletePlayerAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		var player = _context.Players.FirstOrDefault(item => item.Id == playerId);
+		var player = await _context.Players.FirstOrDefaultAsync(item => item.Id == playerId, cancellationToken);
 
 		if (player is null)
 		{
@@ -43,22 +40,22 @@ public class DBPlayerRepository : IPlayerRepository
 		}
 
 		_context.Players.Remove(player);
-		_context.SaveChanges();
+		await _context.SaveChangesAsync(cancellationToken);
 		_logger.LogInformation("Player {PlayerId} deleted from database", playerId);
 	}
 
-	public Player? FindPlayer(int playerId)
+	public async Task<Player?> FindPlayerAsync(int playerId, CancellationToken cancellationToken = default)
 	{
 		// Read-only existence check, so no need to track the entity.
-		return _context.Players.AsNoTracking().FirstOrDefault(item => item.Id == playerId);
+		return await _context.Players.AsNoTracking().FirstOrDefaultAsync(item => item.Id == playerId, cancellationToken);
 	}
 
-	public IEnumerable<IGrouping<int, Player>> GroupPlayersByScore()
+	public async Task<IEnumerable<IGrouping<int, Player>>> GroupPlayersByScoreAsync(CancellationToken cancellationToken = default)
 	{
 		// Fetch from DB, then group in-memory to preserve exact GroupBy alignment & ordering
-		return _context.Players
-			.AsNoTracking()
-			.ToList()
+		var players = await _context.Players.AsNoTracking().ToListAsync(cancellationToken);
+
+		return players
 			.GroupBy(player => player.Score)
 			.OrderByDescending(group => group.Key);
 	}

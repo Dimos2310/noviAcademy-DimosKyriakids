@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WorldRank.Application.Interfaces;
@@ -14,6 +11,8 @@ namespace WorldRank.Infrastructure.Repositories;
 
 public class DBWalletRepository : IWalletRepository
 {
+	private const int MaxConcurrencyRetries = 3;
+
 	private readonly WorldRankDbContext _context;
 	private readonly ILogger<DBWalletRepository> _logger;
 
@@ -23,9 +22,9 @@ public class DBWalletRepository : IWalletRepository
 		_logger = logger;
 	}
 
-	public void Add(Wallet wallet)
+	public async Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default)
 	{
-		var exists = _context.Wallets.Any(item => item.PlayerId == wallet.PlayerId && item.Currency == wallet.Currency);
+		var exists = await _context.Wallets.AnyAsync(item => item.PlayerId == wallet.PlayerId && item.Currency == wallet.Currency, cancellationToken);
 
 		if (exists)
 		{
@@ -33,72 +32,24 @@ public class DBWalletRepository : IWalletRepository
 		}
 
 		_context.Wallets.Add(wallet);
-		_context.SaveChanges();
+		await _context.SaveChangesAsync(cancellationToken);
 		_logger.LogInformation("Wallet created in database for player {PlayerId} in {Currency} with balance {Balance}", wallet.PlayerId, wallet.Currency, wallet.Balance);
 	}
 
-	public void ApplyStrategy(int playerId, Currency currency, IFundsStrategy strategy, decimal amount)
+	public async Task<Wallet[]> GetAllAsync(CancellationToken cancellationToken = default)
 	{
-		var wallet = GetWallet(playerId, currency);
-		strategy.Execute(wallet, amount);
-		_context.SaveChanges();
-		_logger.LogInformation("Applied {Strategy} of {Amount} to player {PlayerId} {Currency} wallet in database (balance {Balance})",
-			strategy.GetType().Name, amount, playerId, currency, wallet.Balance);
+		return await _context.Wallets.AsNoTracking().ToArrayAsync(cancellationToken);
 	}
 
-	public Wallet[] GetAll()
+	public async Task<List<Wallet>> GetAllWalletsByPlayerIdAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		return _context.Wallets.AsNoTracking().ToArray();
+		return await _context.Wallets.AsNoTracking().Where(item => item.PlayerId == playerId).ToListAsync(cancellationToken);
 	}
 
-	public List<Wallet> GetAllWalletsByPlayerId(int playerId)
+	public async Task<Wallet> GetWalletAsync(int playerId, Currency currency, CancellationToken cancellationToken = default)
 	{
-		return _context.Wallets.AsNoTracking().Where(item => item.PlayerId == playerId).ToList();
-	}
-
-	public void UpdateBalance(int playerId, Currency currency, decimal newBalance)
-	{
-		var wallet = GetWallet(playerId, currency);
-		wallet.SetBalance(newBalance);
-		_context.SaveChanges();
-		_logger.LogInformation("Player {PlayerId} {Currency} wallet balance set in database to {Balance}", playerId, currency, newBalance);
-	}
-
-	public void Deposit(int playerId, Currency currency, decimal amount)
-	{
-		var wallet = GetWallet(playerId, currency);
-		wallet.Deposit(amount);
-		_context.SaveChanges();
-		_logger.LogInformation("Deposited {Amount} to player {PlayerId} {Currency} wallet in database (balance {Balance})", amount, playerId, currency, wallet.Balance);
-	}
-
-	public void Withdraw(int playerId, Currency currency, decimal amount)
-	{
-		var wallet = GetWallet(playerId, currency);
-		wallet.Withdraw(amount);
-		_context.SaveChanges();
-		_logger.LogInformation("Withdrew {Amount} from player {PlayerId} {Currency} wallet in database (balance {Balance})", amount, playerId, currency, wallet.Balance);
-	}
-
-	public void Block(int playerId, Currency currency)
-	{
-		var wallet = GetWallet(playerId, currency);
-		wallet.Block();
-		_context.SaveChanges();
-		_logger.LogInformation("Player {PlayerId} {Currency} wallet blocked in database", playerId, currency);
-	}
-
-	public void Unblock(int playerId, Currency currency)
-	{
-		var wallet = GetWallet(playerId, currency);
-		wallet.Unblock();
-		_context.SaveChanges();
-		_logger.LogInformation("Player {PlayerId} {Currency} wallet unblocked in database", playerId, currency);
-	}
-
-	public Wallet GetWallet(int playerId, Currency currency)
-	{
-		var wallet = _context.Wallets.SingleOrDefault(item => item.PlayerId == playerId && item.Currency == currency);
+		var wallet = await _context.Wallets.AsNoTracking()
+			.SingleOrDefaultAsync(item => item.PlayerId == playerId && item.Currency == currency, cancellationToken);
 
 		if (wallet is null)
 		{
@@ -106,5 +57,89 @@ public class DBWalletRepository : IWalletRepository
 		}
 
 		return wallet;
+	}
+
+	public async Task<Wallet?> GetByIdAsync(int walletId, CancellationToken cancellationToken = default)
+	{
+		return await _context.Wallets.AsNoTracking().FirstOrDefaultAsync(item => item.Id == walletId, cancellationToken);
+	}
+
+	public async Task<Wallet> UpdateBalanceAsync(int walletId, decimal newBalance, CancellationToken cancellationToken = default)
+	{
+		var wallet = await ExecuteWithOptimisticRetryAsync(walletId, w => w.SetBalance(newBalance), cancellationToken);
+		_logger.LogInformation("Wallet {WalletId} balance set in database to {Balance}", walletId, newBalance);
+		return wallet;
+	}
+
+	public async Task<Wallet> DepositAsync(int walletId, decimal amount, CancellationToken cancellationToken = default)
+	{
+		var wallet = await ExecuteWithOptimisticRetryAsync(walletId, w => w.Deposit(amount), cancellationToken);
+		_logger.LogInformation("Deposited {Amount} to wallet {WalletId} in database (balance {Balance})", amount, walletId, wallet.Balance);
+		return wallet;
+	}
+
+	public async Task<Wallet> WithdrawAsync(int walletId, decimal amount, CancellationToken cancellationToken = default)
+	{
+		var wallet = await ExecuteWithOptimisticRetryAsync(walletId, w => w.Withdraw(amount), cancellationToken);
+		_logger.LogInformation("Withdrew {Amount} from wallet {WalletId} in database (balance {Balance})", amount, walletId, wallet.Balance);
+		return wallet;
+	}
+
+	public async Task<Wallet> BlockAsync(int walletId, CancellationToken cancellationToken = default)
+	{
+		var wallet = await ExecuteWithOptimisticRetryAsync(walletId, w => w.Block(), cancellationToken);
+		_logger.LogInformation("Wallet {WalletId} blocked in database", walletId);
+		return wallet;
+	}
+
+	public async Task<Wallet> UnblockAsync(int walletId, CancellationToken cancellationToken = default)
+	{
+		var wallet = await ExecuteWithOptimisticRetryAsync(walletId, w => w.Unblock(), cancellationToken);
+		_logger.LogInformation("Wallet {WalletId} unblocked in database", walletId);
+		return wallet;
+	}
+
+	public async Task<Wallet> ApplyStrategyAsync(int walletId, IFundsStrategy strategy, decimal amount, CancellationToken cancellationToken = default)
+	{
+		var wallet = await ExecuteWithOptimisticRetryAsync(walletId, w => strategy.Execute(w, amount), cancellationToken);
+		_logger.LogInformation("Applied {Strategy} of {Amount} to wallet {WalletId} in database (balance {Balance})",
+			strategy.GetType().Name, amount, walletId, wallet.Balance);
+		return wallet;
+	}
+
+	private async Task<Wallet> GetTrackedWalletAsync(int walletId, CancellationToken cancellationToken)
+	{
+		var wallet = await _context.Wallets.FirstOrDefaultAsync(item => item.Id == walletId, cancellationToken);
+
+		if (wallet is null)
+		{
+			throw new WalletNotFoundByIdException(walletId);
+		}
+
+		return wallet;
+	}
+
+	// Read-modify-write under a rowversion concurrency token: if another request saved
+	// changes to this wallet between our read and our SaveChanges, EF Core throws
+	// DbUpdateConcurrencyException instead of silently overwriting that update. We
+	// re-fetch the now-current row and reapply the mutation on top of it, so two
+	// concurrent deposits both land instead of the second one clobbering the first.
+	private async Task<Wallet> ExecuteWithOptimisticRetryAsync(int walletId, Action<Wallet> mutate, CancellationToken cancellationToken)
+	{
+		for (var attempt = 1; ; attempt++)
+		{
+			var wallet = await GetTrackedWalletAsync(walletId, cancellationToken);
+			mutate(wallet);
+
+			try
+			{
+				await _context.SaveChangesAsync(cancellationToken);
+				return wallet;
+			}
+			catch (DbUpdateConcurrencyException) when (attempt < MaxConcurrencyRetries)
+			{
+				_context.Entry(wallet).State = EntityState.Detached;
+			}
+		}
 	}
 }

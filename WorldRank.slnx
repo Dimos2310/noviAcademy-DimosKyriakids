@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/docs/" />
   <Folder Name="/WorldRank/">
-    <Project Path="WorldRand.API/WorldRand.API.csproj" Id="fc8f1cdc-53c4-4d17-a9b6-37d57b226139" />
+    <Project Path="WorldRank.Api/WorldRank.Api.csproj" Id="fc8f1cdc-53c4-4d17-a9b6-37d57b226139" />
     <Project Path="WorldRank.Application/WorldRank.Application.csproj" />
     <Project Path="WorldRank.Console/WorldRank.Console.csproj" />
     <Project Path="WorldRank.Domain/WorldRank.Domain.csproj" />

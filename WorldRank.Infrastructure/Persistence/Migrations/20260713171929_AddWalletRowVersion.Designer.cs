@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WorldRank.Infrastructure.Persistence.Context;
 
@@ -10,9 +11,11 @@ using WorldRank.Infrastructure.Persistence.Context;
 namespace WorldRank.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(WorldRankDbContext))]
-    partial class WorldRankDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713171929_AddWalletRowVersion")]
+    partial class AddWalletRowVersion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

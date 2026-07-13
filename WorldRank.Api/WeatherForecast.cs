@@ -1,4 +1,4 @@
-namespace WorldRand.API
+namespace WorldRank.Api
 {
     public class WeatherForecast
     {

@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using WorldRank.Application.Interfaces;
 using WorldRank.Domain.Entities;
@@ -13,23 +12,23 @@ public class PlayerService : IPlayerService
 	private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
 	private readonly IPlayerRepository _playerRepository;
-	private readonly IMemoryCache _cache;
+	private readonly ICache _cache;
 	private readonly ILogger<PlayerService> _logger;
 
-	public PlayerService(IPlayerRepository playerRepository, IMemoryCache cache, ILogger<PlayerService> logger)
+	public PlayerService(IPlayerRepository playerRepository, ICache cache, ILogger<PlayerService> logger)
 	{
 		_playerRepository = playerRepository;
 		_cache = cache;
 		_logger = logger;
 	}
 
-	public Player AddPlayer(string name, int score)
+	public async Task<Player> AddPlayerAsync(string name, int score, CancellationToken cancellationToken = default)
 	{
 		// The id is assigned by the store (database identity or the in-memory
 		// repository), so the service never generates one itself.
 		var player = new Player(name);
 		player.AddScore(score);
-		_playerRepository.AddPlayer(player);
+		await _playerRepository.AddPlayerAsync(player, cancellationToken);
 
 		// Write-through: the cached list is now stale, drop it so the next read reloads it.
 		_cache.Remove(AllPlayersCacheKey);
@@ -37,7 +36,7 @@ public class PlayerService : IPlayerService
 		return player;
 	}
 
-	public IEnumerable<Player> GetAllPlayers()
+	public async Task<IReadOnlyList<Player>> GetAllPlayersAsync(CancellationToken cancellationToken = default)
 	{
 		if (_cache.TryGetValue(AllPlayersCacheKey, out IReadOnlyList<Player>? cached) && cached is not null)
 		{
@@ -46,32 +45,32 @@ public class PlayerService : IPlayerService
 		}
 
 		_logger.LogInformation("Cache MISS all players — loading from database");
-		var players = _playerRepository.GetAllPlayers().ToList();
+		var players = await _playerRepository.GetAllPlayersAsync(cancellationToken);
 
-		_cache.Set(AllPlayersCacheKey, (IReadOnlyList<Player>)players, CacheTtl);
+		_cache.Set(AllPlayersCacheKey, players, CacheTtl);
 
 		return players;
 	}
 
-	public IEnumerable<IGrouping<int, Player>> GroupPlayersByScore()
+	public async Task<IEnumerable<IGrouping<int, Player>>> GroupPlayersByScoreAsync(CancellationToken cancellationToken = default)
 	{
-		return _playerRepository.GroupPlayersByScore();
+		return await _playerRepository.GroupPlayersByScoreAsync(cancellationToken);
 	}
 
-	public Player? FindPlayerByName(string name)
+	public async Task<Player?> FindPlayerByNameAsync(string name, CancellationToken cancellationToken = default)
 	{
-		return _playerRepository.GetAllPlayers()
-			.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+		var players = await GetAllPlayersAsync(cancellationToken);
+		return players.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 	}
 
-	public Player? FindPlayerById(int playerId)
+	public async Task<Player?> FindPlayerByIdAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		return _playerRepository.FindPlayer(playerId);
+		return await _playerRepository.FindPlayerAsync(playerId, cancellationToken);
 	}
 
-	public void DeletePlayer(int playerId)
+	public async Task DeletePlayerAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		_playerRepository.DeletePlayer(playerId);
+		await _playerRepository.DeletePlayerAsync(playerId, cancellationToken);
 
 		// Write-through: the cached list is now stale, drop it so the next read reloads it.
 		_cache.Remove(AllPlayersCacheKey);

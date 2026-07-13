@@ -36,6 +36,12 @@ public partial class WorldRankDbContext : DbContext
 			x.Property(y => y.IsBlocked).IsRequired();
 			// A player can hold at most one wallet per currency.
 			x.HasIndex(y => new { y.PlayerId, y.Currency }).IsUnique();
+
+			// Optimistic concurrency token, DB-generated on every UPDATE. Kept as a
+			// shadow property (not a CLR property on Wallet) so it stays an
+			// infrastructure concern. Guards Deposit/Withdraw/ApplyStrategy/
+			// UpdateBalance against lost updates from concurrent requests.
+			x.Property<byte[]>("RowVersion").IsRowVersion();
 		});
 
 		base.OnModelCreating(modelBuilder);

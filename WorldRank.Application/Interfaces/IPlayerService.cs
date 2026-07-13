@@ -4,15 +4,15 @@ namespace WorldRank.Application.Interfaces;
 
 public interface IPlayerService
 {
-	Player AddPlayer(string name, int score);
+	Task<Player> AddPlayerAsync(string name, int score, CancellationToken cancellationToken = default);
 
-	IEnumerable<Player> GetAllPlayers();
+	Task<IReadOnlyList<Player>> GetAllPlayersAsync(CancellationToken cancellationToken = default);
 
-	IEnumerable<IGrouping<int, Player>> GroupPlayersByScore();
+	Task<IEnumerable<IGrouping<int, Player>>> GroupPlayersByScoreAsync(CancellationToken cancellationToken = default);
 
-	Player? FindPlayerByName(string name);
+	Task<Player?> FindPlayerByNameAsync(string name, CancellationToken cancellationToken = default);
 
-	Player? FindPlayerById(int playerId);
+	Task<Player?> FindPlayerByIdAsync(int playerId, CancellationToken cancellationToken = default);
 
-	void DeletePlayer(int playerId);
+	Task DeletePlayerAsync(int playerId, CancellationToken cancellationToken = default);
 }

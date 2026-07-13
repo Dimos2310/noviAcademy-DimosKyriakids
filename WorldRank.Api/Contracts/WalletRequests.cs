@@ -1,9 +1,9 @@
 using WorldRank.Application.Strategies;
 using WorldRank.Domain.Enums;
 
-namespace WorldRand.API.Contracts;
+namespace WorldRank.Api.Contracts;
 
-public record AddWalletRequest(Currency Currency, decimal InitialBalance);
+public record AddWalletRequest(int PlayerId, Currency Currency, decimal InitialBalance);
 
 public record WalletAmountRequest(decimal Amount);
 

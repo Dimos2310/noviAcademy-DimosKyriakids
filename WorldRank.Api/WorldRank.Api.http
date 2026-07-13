@@ -1,0 +1,6 @@
+@WorldRank.Api_HostAddress = http://localhost:5182
+
+GET {{WorldRank.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

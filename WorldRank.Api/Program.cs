@@ -2,10 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using NLog.Extensions.Logging;
 using System.Data.Common;
 using System.Text.Json.Serialization;
-using WorldRand;
 using WorldRank.Application.Interfaces;
 using WorldRank.Application.Services;
 using WorldRank.Application.Strategies;
+using WorldRank.Infrastructure.Caching;
 using WorldRank.Infrastructure.Persistence.Context;
 using WorldRank.Infrastructure.Repositories;
 
@@ -24,9 +24,11 @@ builder.Services.AddScoped<IPlayerRepository, DBPlayerRepository>();
 builder.Services.AddScoped<IWalletRepository, DBWalletRepository>();
 
 // Single-instance in-memory cache (Day 6). Redis would replace this behind a load balancer.
+// Services depend on ICache (Application-owned port), never on IMemoryCache directly.
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ICache, MemoryCacheStore>();
 
-// The services own the caching (read-through + write-through) and reach the DB via the repositories.
+// The services own the caching (cache-aside reads + write-through) and reach the DB via the repositories.
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IPlayerService, PlayerService>();
 

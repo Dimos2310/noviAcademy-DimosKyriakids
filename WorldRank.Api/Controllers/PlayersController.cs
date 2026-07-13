@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using WorldRand.API.Contracts;
+using WorldRank.Api.Contracts;
 using WorldRank.Application.Interfaces;
-using WorldRank.Domain.Entities;
 
-namespace WorldRank.API.Controllers
+namespace WorldRank.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -17,13 +16,11 @@ namespace WorldRank.API.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAll()
+        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
         {
             try
             {
-                var result = _playerService
-                    .GetAllPlayers()
-                    .ToList();
+                var result = (await _playerService.GetAllPlayersAsync(cancellationToken)).ToList();
 
                 if (result.Count == 0)
                     return NotFound();
@@ -37,12 +34,11 @@ namespace WorldRank.API.Controllers
         }
 
         [HttpGet("grouped-by-score")]
-        public IActionResult GetGroupedByScore()
+        public async Task<IActionResult> GetGroupedByScore(CancellationToken cancellationToken)
         {
             try
             {
-                var groups = _playerService
-                    .GroupPlayersByScore()
+                var groups = (await _playerService.GroupPlayersByScoreAsync(cancellationToken))
                     .Select(group => new { score = group.Key, players = group.ToList() })
                     .ToList();
 
@@ -58,11 +54,11 @@ namespace WorldRank.API.Controllers
         }
 
         [HttpGet("search")]
-        public IActionResult FindByName([FromQuery] string name)
+        public async Task<IActionResult> FindByName([FromQuery] string name, CancellationToken cancellationToken)
         {
             try
             {
-                var result = _playerService.FindPlayerByName(name);
+                var result = await _playerService.FindPlayerByNameAsync(name, cancellationToken);
 
                 if (result is null)
                     return NotFound();
@@ -76,11 +72,11 @@ namespace WorldRank.API.Controllers
         }
 
         [HttpGet("{playerId:int}")]
-        public IActionResult GetPlayerById(int playerId)
+        public async Task<IActionResult> GetPlayerById(int playerId, CancellationToken cancellationToken)
         {
             try
             {
-                var result = _playerService.FindPlayerById(playerId);
+                var result = await _playerService.FindPlayerByIdAsync(playerId, cancellationToken);
 
                 if (result is null)
                     return NotFound();
@@ -94,11 +90,11 @@ namespace WorldRank.API.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddPlayer([FromBody] AddPlayerRequest request)
+        public async Task<IActionResult> AddPlayer([FromBody] AddPlayerRequest request, CancellationToken cancellationToken)
         {
             try
             {
-                var player = _playerService.AddPlayer(request.Name, request.Score);
+                var player = await _playerService.AddPlayerAsync(request.Name, request.Score, cancellationToken);
                 return CreatedAtAction(nameof(GetPlayerById), new { playerId = player.Id }, player);
             }
             catch (ArgumentException ex)
@@ -112,11 +108,11 @@ namespace WorldRank.API.Controllers
         }
 
         [HttpDelete("{playerId:int}")]
-        public IActionResult DeletePlayer(int playerId)
+        public async Task<IActionResult> DeletePlayer(int playerId, CancellationToken cancellationToken)
         {
             try
             {
-                _playerService.DeletePlayer(playerId);
+                await _playerService.DeletePlayerAsync(playerId, cancellationToken);
                 return NoContent();
             }
             catch (Exception ex)
