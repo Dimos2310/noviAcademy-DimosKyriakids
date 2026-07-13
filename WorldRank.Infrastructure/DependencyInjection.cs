@@ -32,7 +32,7 @@ public static class DependencyInjection
 		// local SQL container does not support Windows/Integrated auth.
 		services.AddDbContext<WorldRankDbContext>(options =>
 			options.UseSqlServer(
-				"Server=localhost,1433;Database=WorldRank;User Id=sa;Password=NoviAcademy2026!;TrustServerCertificate=true"));
+				"Server=localhost\\MSSQLSERVER01;Database=WorldRank;Integrated Security=True;TrustServerCertificate=true"));
 
 		return services;
 	}
@@ -51,6 +51,15 @@ public static class DependencyInjection
 		// EnsureCreated builds the schema once from the model, which is enough for this
 		// exercise. A production setup would use EF migrations (dotnet ef migrations add +
 		// context.Database.Migrate()) so the schema can evolve without dropping the database.
-		context.Database.EnsureCreated();
+		try
+		{
+			context.Database.EnsureCreated();
+			Console.WriteLine("Database EnsureCreated completed.");
+		}
+		catch (Exception ex)
+		{
+			Console.Error.WriteLine("InitializeDatabase failed: " + ex);
+			throw;
+		}
 	}
 }
