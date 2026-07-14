@@ -43,7 +43,7 @@ while (true)
 	Console.WriteLine("0. Exit");
 	Console.Write("> ");
 
-	Action? action = Console.ReadLine() switch
+	Func<Task>? action = Console.ReadLine() switch
 	{
 		"1" => AddPlayer,
 		"2" => ListPlayers,
@@ -60,7 +60,7 @@ while (true)
 		"13" => UpdateWalletBalance,
 		"14" => ApplyFundsOperation,
 		"0" => null,
-		_ => () => Console.WriteLine("Unknown option.")
+		_ => () => { Console.WriteLine("Unknown option."); return Task.CompletedTask; }
 	};
 
 	if (action is null)
@@ -72,7 +72,7 @@ while (true)
 
 	try
 	{
-		action();
+		await action();
 	}
 	catch (Exception ex)
 	{
@@ -84,7 +84,7 @@ while (true)
 
 #region Player Methods
 
-void AddPlayer()
+async Task AddPlayer()
 {
 	Console.Write("Name: ");
 	var name = Console.ReadLine();
@@ -101,13 +101,13 @@ void AddPlayer()
 		return;
 	}
 
-	playerService.AddPlayer(name, score);
+	await playerService.AddPlayerAsync(name, score);
 	Console.WriteLine("Player added successfully.");
 }
 
-void ListPlayers()
+async Task ListPlayers()
 {
-	var all = playerService.GetAllPlayers().ToList();
+	var all = (await playerService.GetAllPlayersAsync()).ToList();
 
 	if (all.Count == 0)
 	{
@@ -119,9 +119,9 @@ void ListPlayers()
 		Console.WriteLine(player);
 }
 
-void ListPlayersByScore()
+async Task ListPlayersByScore()
 {
-	var groups = playerService.GroupPlayersByScore().ToList();
+	var groups = (await playerService.GroupPlayersByScoreAsync()).ToList();
 
 	if (groups.Count == 0)
 	{
@@ -137,34 +137,34 @@ void ListPlayersByScore()
 	}
 }
 
-void FindPlayerByName()
+async Task FindPlayerByName()
 {
 	Console.Write("Search by name: ");
 	var term = Console.ReadLine() ?? string.Empty;
 
-	var player = playerService.FindPlayerByName(term);
+	var player = await playerService.FindPlayerByNameAsync(term);
 
 	Console.WriteLine(player is null ? "No player found." : player.ToString());
 }
 
-void FindPlayerById()
+async Task FindPlayerById()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
 		return;
 
-	var player = playerService.FindPlayerById(playerId.Value);
+	var player = await playerService.FindPlayerByIdAsync(playerId.Value);
 
 	Console.WriteLine(player is null ? "No player found." : player.ToString());
 }
 
-void DeletePlayer()
+async Task DeletePlayer()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
 		return;
 
-	playerService.DeletePlayer(playerId.Value);
+	await playerService.DeletePlayerAsync(playerId.Value);
 	Console.WriteLine("Player deleted (if it existed).");
 }
 
@@ -172,7 +172,7 @@ void DeletePlayer()
 
 #region Wallet Methods
 
-void AddWalletToPlayer()
+async Task AddWalletToPlayer()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
@@ -188,7 +188,7 @@ void AddWalletToPlayer()
 
 	try
 	{
-		walletService.AddWalletToPlayer(playerId.Value, currency.Value, balance.Value);
+		await walletService.AddWalletToPlayerAsync(playerId.Value, currency.Value, balance.Value);
 		Console.WriteLine("Wallet added successfully.");
 	}
 	catch (PlayerNotFoundException ex)
@@ -203,13 +203,13 @@ void AddWalletToPlayer()
 	}
 }
 
-void GetWalletsOfPlayer()
+async Task GetWalletsOfPlayer()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
 		return;
 
-	var wallets = walletService.GetWalletsOfPlayer(playerId.Value);
+	var wallets = await walletService.GetWalletsOfPlayerAsync(playerId.Value);
 
 	if (wallets.Count == 0)
 	{
@@ -221,7 +221,7 @@ void GetWalletsOfPlayer()
 		Console.WriteLine($"Wallet Number {i} {wallets[i]}");
 }
 
-void DepositToWallet()
+async Task DepositToWallet()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
@@ -235,14 +235,14 @@ void DepositToWallet()
 	if (amount is null)
 		return;
 
-	RunWalletOperation(() =>
+	await RunWalletOperation(async () =>
 	{
-		walletService.Deposit(playerId.Value, currency.Value, amount.Value);
+		await walletService.DepositAsync(playerId.Value, currency.Value, amount.Value);
 		Console.WriteLine("Deposit successful.");
 	});
 }
 
-void WithdrawFromWallet()
+async Task WithdrawFromWallet()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
@@ -256,14 +256,14 @@ void WithdrawFromWallet()
 	if (amount is null)
 		return;
 
-	RunWalletOperation(() =>
+	await RunWalletOperation(async () =>
 	{
-		walletService.Withdraw(playerId.Value, currency.Value, amount.Value);
+		await walletService.WithdrawAsync(playerId.Value, currency.Value, amount.Value);
 		Console.WriteLine("Withdrawal successful.");
 	});
 }
 
-void BlockWallet()
+async Task BlockWallet()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
@@ -273,14 +273,14 @@ void BlockWallet()
 	if (currency is null)
 		return;
 
-	RunWalletOperation(() =>
+	await RunWalletOperation(async () =>
 	{
-		walletService.Block(playerId.Value, currency.Value);
+		await walletService.BlockAsync(playerId.Value, currency.Value);
 		Console.WriteLine("Wallet blocked.");
 	});
 }
 
-void UnblockWallet()
+async Task UnblockWallet()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
@@ -290,14 +290,14 @@ void UnblockWallet()
 	if (currency is null)
 		return;
 
-	RunWalletOperation(() =>
+	await RunWalletOperation(async () =>
 	{
-		walletService.Unblock(playerId.Value, currency.Value);
+		await walletService.UnblockAsync(playerId.Value, currency.Value);
 		Console.WriteLine("Wallet unblocked.");
 	});
 }
 
-void UpdateWalletBalance()
+async Task UpdateWalletBalance()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
@@ -311,14 +311,14 @@ void UpdateWalletBalance()
 	if (newBalance is null)
 		return;
 
-	RunWalletOperation(() =>
+	await RunWalletOperation(async () =>
 	{
-		walletService.UpdateBalance(playerId.Value, currency.Value, newBalance.Value);
+		await walletService.UpdateBalanceAsync(playerId.Value, currency.Value, newBalance.Value);
 		Console.WriteLine("Balance updated.");
 	});
 }
 
-void ApplyFundsOperation()
+async Task ApplyFundsOperation()
 {
 	var playerId = Prompts.PromptPlayerId();
 	if (playerId is null)
@@ -336,19 +336,19 @@ void ApplyFundsOperation()
 	if (amount is null)
 		return;
 
-	RunWalletOperation(() =>
+	await RunWalletOperation(async () =>
 	{
-		walletService.ApplyFunds(playerId.Value, currency.Value, operation.Value, amount.Value);
+		await walletService.ApplyFundsAsync(playerId.Value, currency.Value, operation.Value, amount.Value);
 		Console.WriteLine($"{operation} operation applied.");
 	});
 }
 
 // Runs a wallet operation and turns any domain (WalletException) failure into a friendly message + log.
-void RunWalletOperation(Action operation)
+async Task RunWalletOperation(Func<Task> operation)
 {
 	try
 	{
-		operation();
+		await operation();
 	}
 	catch (WalletException ex)
 	{

@@ -15,7 +15,7 @@ public class InMemoryPlayerRepository : IPlayerRepository
 		_logger = logger;
 	}
 
-	public void AddPlayer(Player player)
+	public Task AddPlayerAsync(Player player, CancellationToken cancellationToken = default)
 	{
 		// Assign the next id here: the store owns id generation, not the service.
 		var id = _players.Count == 0 ? 1 : _players.Max(item => item.Id) + 1;
@@ -23,37 +23,44 @@ public class InMemoryPlayerRepository : IPlayerRepository
 
 		_players.Add(stored);
 		_logger.LogInformation("Player {PlayerId} ({Name}) added with score {Score}", stored.Id, stored.Name, stored.Score);
+
+		return Task.CompletedTask;
 	}
 
-	public IEnumerable<Player> GetAllPlayers()
+	public Task<IReadOnlyList<Player>> GetAllPlayersAsync(CancellationToken cancellationToken = default)
 	{
 		// Return a copy so callers cannot mutate the repository's internal list.
-		return _players.ToList();
+		return Task.FromResult<IReadOnlyList<Player>>(_players.ToList());
 	}
 
-	public void DeletePlayer(int playerId)
+	public Task DeletePlayerAsync(int playerId, CancellationToken cancellationToken = default)
 	{
 		var player = _players.FirstOrDefault(item => item.Id == playerId);
 
 		if (player is null)
 		{
 			_logger.LogWarning("Delete skipped: player {PlayerId} not found", playerId);
-			return;
+			return Task.CompletedTask;
 		}
 
 		_players.Remove(player);
 		_logger.LogInformation("Player {PlayerId} deleted", playerId);
+
+		return Task.CompletedTask;
 	}
 
-	public Player? FindPlayer(int playerId)
+	public Task<Player?> FindPlayerAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		return _players.FirstOrDefault(item => item.Id == playerId);
+		return Task.FromResult(_players.FirstOrDefault(item => item.Id == playerId));
 	}
 
-	public IEnumerable<IGrouping<int, Player>> GroupPlayersByScore()
+	public Task<IEnumerable<IGrouping<int, Player>>> GroupPlayersByScoreAsync(CancellationToken cancellationToken = default)
 	{
-		return _players
+		var groups = _players
 			.GroupBy(player => player.Score)
-			.OrderByDescending(group => group.Key);
+			.OrderByDescending(group => group.Key)
+			.AsEnumerable();
+
+		return Task.FromResult(groups);
 	}
 }

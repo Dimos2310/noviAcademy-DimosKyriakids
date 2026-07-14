@@ -2,7 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog.Extensions.Logging;
 using WorldRank.Application;
+using WorldRank.Application.Interfaces;
 using WorldRank.Infrastructure;
+using WorldRank.Infrastructure.Caching;
 
 namespace WorldRank.Console;
 
@@ -22,6 +24,11 @@ public static class DependencyInjection
 
 		services.AddApplication();
 		services.AddInfrastructure();
+
+		// Single-instance in-memory cache. The services depend on ICache, not on
+		// IMemoryCache directly, so this adapter is the only caching-specific wiring.
+		services.AddMemoryCache();
+		services.AddSingleton<ICache, MemoryCacheStore>();
 
 		return services;
 	}

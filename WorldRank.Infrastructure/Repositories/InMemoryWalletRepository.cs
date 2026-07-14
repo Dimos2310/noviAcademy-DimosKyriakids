@@ -18,7 +18,7 @@ public class InMemoryWalletRepository : IWalletRepository
 		_logger = logger;
 	}
 
-	public void Add(Wallet wallet)
+	public Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default)
 	{
 		var exists = _wallets.Any(item => item.PlayerId == wallet.PlayerId && item.Currency == wallet.Currency);
 
@@ -33,65 +33,93 @@ public class InMemoryWalletRepository : IWalletRepository
 
 		_wallets.Add(stored);
 		_logger.LogInformation("Wallet created for player {PlayerId} in {Currency} with balance {Balance}", stored.PlayerId, stored.Currency, stored.Balance);
+
+		return Task.CompletedTask;
 	}
 
-	public void ApplyStrategy(int playerId, Currency currency, IFundsStrategy strategy, decimal amount)
+	public Task<Wallet[]> GetAllAsync(CancellationToken cancellationToken = default)
 	{
-		var wallet = GetWallet(playerId, currency);
-		strategy.Execute(wallet, amount);
-		_logger.LogInformation("Applied {Strategy} of {Amount} to player {PlayerId} {Currency} wallet (balance {Balance})",
-			strategy.GetType().Name, amount, playerId, currency, wallet.Balance);
+		return Task.FromResult(_wallets.ToArray());
 	}
 
-	public Wallet[] GetAll()
+	public Task<List<Wallet>> GetAllWalletsByPlayerIdAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		return _wallets.ToArray();
+		return Task.FromResult(_wallets.Where(item => item.PlayerId == playerId).ToList());
 	}
 
-	public List<Wallet> GetAllWalletsByPlayerId(int playerId)
-	{
-		return _wallets.Where(item => item.PlayerId == playerId).ToList();
-	}
-
-	public void UpdateBalance(int playerId, Currency currency, decimal newBalance)
-	{
-		GetWallet(playerId, currency).SetBalance(newBalance);
-		_logger.LogInformation("Player {PlayerId} {Currency} wallet balance set to {Balance}", playerId, currency, newBalance);
-	}
-
-	public void Deposit(int playerId, Currency currency, decimal amount)
-	{
-		var wallet = GetWallet(playerId, currency);
-		wallet.Deposit(amount);
-		_logger.LogInformation("Deposited {Amount} to player {PlayerId} {Currency} wallet (balance {Balance})", amount, playerId, currency, wallet.Balance);
-	}
-
-	public void Withdraw(int playerId, Currency currency, decimal amount)
-	{
-		var wallet = GetWallet(playerId, currency);
-		wallet.Withdraw(amount);
-		_logger.LogInformation("Withdrew {Amount} from player {PlayerId} {Currency} wallet (balance {Balance})", amount, playerId, currency, wallet.Balance);
-	}
-
-	public void Block(int playerId, Currency currency)
-	{
-		GetWallet(playerId, currency).Block();
-		_logger.LogInformation("Player {PlayerId} {Currency} wallet blocked", playerId, currency);
-	}
-
-	public void Unblock(int playerId, Currency currency)
-	{
-		GetWallet(playerId, currency).Unblock();
-		_logger.LogInformation("Player {PlayerId} {Currency} wallet unblocked", playerId, currency);
-	}
-
-	public Wallet GetWallet(int playerId, Currency currency)
+	public Task<Wallet> GetWalletAsync(int playerId, Currency currency, CancellationToken cancellationToken = default)
 	{
 		var wallet = _wallets.SingleOrDefault(item => item.PlayerId == playerId && item.Currency == currency);
 
 		if (wallet is null)
 		{
 			throw new WalletNotFoundException(playerId, currency);
+		}
+
+		return Task.FromResult(wallet);
+	}
+
+	public Task<Wallet?> GetByIdAsync(int walletId, CancellationToken cancellationToken = default)
+	{
+		return Task.FromResult(_wallets.FirstOrDefault(item => item.Id == walletId));
+	}
+
+	public Task<Wallet> UpdateBalanceAsync(int walletId, decimal newBalance, CancellationToken cancellationToken = default)
+	{
+		var wallet = GetTrackedWallet(walletId);
+		wallet.SetBalance(newBalance);
+		_logger.LogInformation("Wallet {WalletId} balance set to {Balance}", walletId, newBalance);
+		return Task.FromResult(wallet);
+	}
+
+	public Task<Wallet> DepositAsync(int walletId, decimal amount, CancellationToken cancellationToken = default)
+	{
+		var wallet = GetTrackedWallet(walletId);
+		wallet.Deposit(amount);
+		_logger.LogInformation("Deposited {Amount} to wallet {WalletId} (balance {Balance})", amount, walletId, wallet.Balance);
+		return Task.FromResult(wallet);
+	}
+
+	public Task<Wallet> WithdrawAsync(int walletId, decimal amount, CancellationToken cancellationToken = default)
+	{
+		var wallet = GetTrackedWallet(walletId);
+		wallet.Withdraw(amount);
+		_logger.LogInformation("Withdrew {Amount} from wallet {WalletId} (balance {Balance})", amount, walletId, wallet.Balance);
+		return Task.FromResult(wallet);
+	}
+
+	public Task<Wallet> BlockAsync(int walletId, CancellationToken cancellationToken = default)
+	{
+		var wallet = GetTrackedWallet(walletId);
+		wallet.Block();
+		_logger.LogInformation("Wallet {WalletId} blocked", walletId);
+		return Task.FromResult(wallet);
+	}
+
+	public Task<Wallet> UnblockAsync(int walletId, CancellationToken cancellationToken = default)
+	{
+		var wallet = GetTrackedWallet(walletId);
+		wallet.Unblock();
+		_logger.LogInformation("Wallet {WalletId} unblocked", walletId);
+		return Task.FromResult(wallet);
+	}
+
+	public Task<Wallet> ApplyStrategyAsync(int walletId, IFundsStrategy strategy, decimal amount, CancellationToken cancellationToken = default)
+	{
+		var wallet = GetTrackedWallet(walletId);
+		strategy.Execute(wallet, amount);
+		_logger.LogInformation("Applied {Strategy} of {Amount} to wallet {WalletId} (balance {Balance})",
+			strategy.GetType().Name, amount, walletId, wallet.Balance);
+		return Task.FromResult(wallet);
+	}
+
+	private Wallet GetTrackedWallet(int walletId)
+	{
+		var wallet = _wallets.FirstOrDefault(item => item.Id == walletId);
+
+		if (wallet is null)
+		{
+			throw new WalletNotFoundByIdException(walletId);
 		}
 
 		return wallet;

@@ -16,10 +16,12 @@ public class Wallet : IWallet
 
 	}
 
+	// Rehydrates an already-persisted wallet (this is also the constructor EF Core
+	// materializes rows with, since it binds all five mapped properties). No balance
+	// guard here: ForceSubtractFundsStrategy can legitimately leave a stored balance
+	// negative, and every row must remain readable regardless of how it got that way.
 	public Wallet(int id, int playerId, Currency currency, decimal balance, bool isBlocked = false)
 	{
-		if (balance < 0)
-			throw new InsufficientFundsException(balance);
 		Id = id;
 		PlayerId = playerId;
 		Balance = balance;
