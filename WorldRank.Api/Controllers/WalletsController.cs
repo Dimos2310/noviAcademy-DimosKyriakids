@@ -27,7 +27,7 @@ namespace WorldRank.Api.Controllers
                 if (wallet is null)
                     return NotFound();
 
-                return Ok(wallet);
+                return Ok(WalletResponse.From(wallet));
             }
             catch (Exception ex)
             {
@@ -45,7 +45,7 @@ namespace WorldRank.Api.Controllers
                 if (wallets.Count == 0)
                     return NotFound();
 
-                return Ok(wallets);
+                return Ok(wallets.Select(WalletResponse.From));
             }
             catch (Exception ex)
             {
@@ -59,7 +59,7 @@ namespace WorldRank.Api.Controllers
             try
             {
                 var wallet = await _walletService.AddWalletToPlayerAsync(request.PlayerId, request.Currency, request.InitialBalance, cancellationToken);
-                return CreatedAtAction(nameof(GetById), new { id = wallet.Id }, wallet);
+                return CreatedAtAction(nameof(GetById), new { id = wallet.Id }, WalletResponse.From(wallet));
             }
             catch (PlayerNotFoundException ex)
             {
@@ -105,7 +105,7 @@ namespace WorldRank.Api.Controllers
             try
             {
                 var wallet = await operation(cancellationToken);
-                return Ok(wallet);
+                return Ok(WalletResponse.From(wallet));
             }
             catch (WalletException ex)
             {

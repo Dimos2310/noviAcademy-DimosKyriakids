@@ -25,7 +25,7 @@ namespace WorldRank.Api.Controllers
                 if (result.Count == 0)
                     return NotFound();
 
-                return Ok(result);
+                return Ok(result.Select(PlayerResponse.From));
             }
             catch (Exception ex)
             {
@@ -39,7 +39,7 @@ namespace WorldRank.Api.Controllers
             try
             {
                 var groups = (await _playerService.GroupPlayersByScoreAsync(cancellationToken))
-                    .Select(group => new { score = group.Key, players = group.ToList() })
+                    .Select(group => new { score = group.Key, players = group.Select(PlayerResponse.From).ToList() })
                     .ToList();
 
                 if (groups.Count == 0)
@@ -63,7 +63,7 @@ namespace WorldRank.Api.Controllers
                 if (result is null)
                     return NotFound();
 
-                return Ok(result);
+                return Ok(PlayerResponse.From(result));
             }
             catch (Exception ex)
             {
@@ -81,7 +81,7 @@ namespace WorldRank.Api.Controllers
                 if (result is null)
                     return NotFound();
 
-                return Ok(result);
+                return Ok(PlayerResponse.From(result));
             }
             catch (Exception ex)
             {
@@ -95,7 +95,7 @@ namespace WorldRank.Api.Controllers
             try
             {
                 var player = await _playerService.AddPlayerAsync(request.Name, request.Score, cancellationToken);
-                return CreatedAtAction(nameof(GetPlayerById), new { playerId = player.Id }, player);
+                return CreatedAtAction(nameof(GetPlayerById), new { playerId = player.Id }, PlayerResponse.From(player));
             }
             catch (ArgumentException ex)
             {
