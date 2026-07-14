@@ -1,6 +1,8 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using WorldRank.Api.Contracts;
-using WorldRank.Application.Interfaces;
+using WorldRank.Application.Commands.Wallets;
+using WorldRank.Application.Queries.Wallets;
 using WorldRank.Domain.Entities;
 using WorldRank.Domain.Exceptions;
 
@@ -10,11 +12,11 @@ namespace WorldRank.Api.Controllers
     [Route("api/wallets")]
     public class WalletsController : ControllerBase
     {
-        private readonly IWalletService _walletService;
+        private readonly IMediator _mediator;
 
-        public WalletsController(IWalletService walletService)
+        public WalletsController(IMediator mediator)
         {
-            _walletService = walletService;
+            _mediator = mediator;
         }
 
         [HttpGet("{id:int}")]
@@ -22,7 +24,7 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var wallet = await _walletService.GetWalletByIdAsync(id, cancellationToken);
+                var wallet = await _mediator.Send(new GetWalletByIdQuery(id), cancellationToken);
 
                 if (wallet is null)
                     return NotFound();
@@ -40,7 +42,7 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var wallets = await _walletService.GetWalletsOfPlayerAsync(playerId, cancellationToken);
+                var wallets = await _mediator.Send(new GetWalletsByPlayerQuery(playerId), cancellationToken);
 
                 if (wallets.Count == 0)
                     return NotFound();
@@ -58,8 +60,10 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var wallet = await _walletService.AddWalletToPlayerAsync(request.PlayerId, request.Currency, request.InitialBalance, cancellationToken);
-                return CreatedAtAction(nameof(GetById), new { id = wallet.Id }, WalletResponse.From(wallet));
+                var walletId = await _mediator.Send(new CreateWalletCommand(request.PlayerId, request.Currency, request.InitialBalance), cancellationToken);
+
+                var wallet = await _mediator.Send(new GetWalletByIdQuery(walletId), cancellationToken);
+                return CreatedAtAction(nameof(GetById), new { id = walletId }, WalletResponse.From(wallet!));
             }
             catch (PlayerNotFoundException ex)
             {
@@ -77,30 +81,30 @@ namespace WorldRank.Api.Controllers
 
         [HttpPost("{id:int}/deposit")]
         public Task<IActionResult> Deposit(int id, [FromBody] WalletAmountRequest request, CancellationToken cancellationToken)
-            => RunWalletOperation(id, ct => _walletService.DepositByIdAsync(id, request.Amount, ct), cancellationToken);
+            => RunWalletOperation(ct => _mediator.Send(new DepositCommand(id, request.Amount), ct), cancellationToken);
 
         [HttpPost("{id:int}/withdraw")]
         public Task<IActionResult> Withdraw(int id, [FromBody] WalletAmountRequest request, CancellationToken cancellationToken)
-            => RunWalletOperation(id, ct => _walletService.WithdrawByIdAsync(id, request.Amount, ct), cancellationToken);
+            => RunWalletOperation(ct => _mediator.Send(new WithdrawCommand(id, request.Amount), ct), cancellationToken);
 
         [HttpPost("{id:int}/block")]
         public Task<IActionResult> Block(int id, CancellationToken cancellationToken)
-            => RunWalletOperation(id, ct => _walletService.BlockByIdAsync(id, ct), cancellationToken);
+            => RunWalletOperation(ct => _mediator.Send(new BlockWalletCommand(id), ct), cancellationToken);
 
         [HttpPost("{id:int}/unblock")]
         public Task<IActionResult> Unblock(int id, CancellationToken cancellationToken)
-            => RunWalletOperation(id, ct => _walletService.UnblockByIdAsync(id, ct), cancellationToken);
+            => RunWalletOperation(ct => _mediator.Send(new UnblockWalletCommand(id), ct), cancellationToken);
 
         [HttpPut("{id:int}/balance")]
         public Task<IActionResult> UpdateBalance(int id, [FromBody] UpdateWalletBalanceRequest request, CancellationToken cancellationToken)
-            => RunWalletOperation(id, ct => _walletService.UpdateBalanceByIdAsync(id, request.NewBalance, ct), cancellationToken);
+            => RunWalletOperation(ct => _mediator.Send(new UpdateWalletBalanceCommand(id, request.NewBalance), ct), cancellationToken);
 
         [HttpPost("{id:int}/apply-funds")]
         public Task<IActionResult> ApplyFunds(int id, [FromBody] ApplyFundsRequest request, CancellationToken cancellationToken)
-            => RunWalletOperation(id, ct => _walletService.ApplyFundsByIdAsync(id, request.Operation, request.Amount, ct), cancellationToken);
+            => RunWalletOperation(ct => _mediator.Send(new ApplyFundsCommand(id, request.Operation, request.Amount), ct), cancellationToken);
 
-        // Runs a wallet-mutating operation and turns any domain (WalletException) failure into the matching HTTP response.
-        private async Task<IActionResult> RunWalletOperation(int id, Func<CancellationToken, Task<Wallet>> operation, CancellationToken cancellationToken)
+        // Runs a wallet-mutating command and turns any domain (WalletException) failure into the matching HTTP response.
+        private async Task<IActionResult> RunWalletOperation(Func<CancellationToken, Task<Wallet>> operation, CancellationToken cancellationToken)
         {
             try
             {
