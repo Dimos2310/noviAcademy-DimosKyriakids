@@ -1,6 +1,8 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using WorldRank.Api.Contracts;
-using WorldRank.Application.Interfaces;
+using WorldRank.Application.Commands.Players;
+using WorldRank.Application.Queries.Players;
 
 namespace WorldRank.Api.Controllers
 {
@@ -8,11 +10,11 @@ namespace WorldRank.Api.Controllers
     [Route("api/[controller]")]
     public class PlayersController : ControllerBase
     {
-        private readonly IPlayerService _playerService;
+        private readonly IMediator _mediator;
 
-        public PlayersController(IPlayerService playerService)
+        public PlayersController(IMediator mediator)
         {
-            _playerService = playerService;
+            _mediator = mediator;
         }
 
         [HttpGet]
@@ -20,12 +22,12 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var result = (await _playerService.GetAllPlayersAsync(cancellationToken)).ToList();
+                var result = (await _mediator.Send(new GetAllPlayersQuery(), cancellationToken)).ToList();
 
                 if (result.Count == 0)
                     return NotFound();
 
-                return Ok(result);
+                return Ok(result.Select(PlayerResponse.From));
             }
             catch (Exception ex)
             {
@@ -38,8 +40,8 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var groups = (await _playerService.GroupPlayersByScoreAsync(cancellationToken))
-                    .Select(group => new { score = group.Key, players = group.ToList() })
+                var groups = (await _mediator.Send(new GetPlayersGroupedByScoreQuery(), cancellationToken))
+                    .Select(group => new { score = group.Key, players = group.Select(PlayerResponse.From).ToList() })
                     .ToList();
 
                 if (groups.Count == 0)
@@ -58,12 +60,12 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var result = await _playerService.FindPlayerByNameAsync(name, cancellationToken);
+                var result = await _mediator.Send(new GetPlayerByNameQuery(name), cancellationToken);
 
                 if (result is null)
                     return NotFound();
 
-                return Ok(result);
+                return Ok(PlayerResponse.From(result));
             }
             catch (Exception ex)
             {
@@ -76,12 +78,12 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var result = await _playerService.FindPlayerByIdAsync(playerId, cancellationToken);
+                var result = await _mediator.Send(new GetPlayerByIdQuery(playerId), cancellationToken);
 
                 if (result is null)
                     return NotFound();
 
-                return Ok(result);
+                return Ok(PlayerResponse.From(result));
             }
             catch (Exception ex)
             {
@@ -94,8 +96,10 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                var player = await _playerService.AddPlayerAsync(request.Name, request.Score, cancellationToken);
-                return CreatedAtAction(nameof(GetPlayerById), new { playerId = player.Id }, player);
+                var playerId = await _mediator.Send(new AddPlayerCommand(request.Name, request.Score), cancellationToken);
+
+                var player = await _mediator.Send(new GetPlayerByIdQuery(playerId), cancellationToken);
+                return CreatedAtAction(nameof(GetPlayerById), new { playerId }, PlayerResponse.From(player!));
             }
             catch (ArgumentException ex)
             {
@@ -112,7 +116,7 @@ namespace WorldRank.Api.Controllers
         {
             try
             {
-                await _playerService.DeletePlayerAsync(playerId, cancellationToken);
+                await _mediator.Send(new DeletePlayerCommand(playerId), cancellationToken);
                 return NoContent();
             }
             catch (Exception ex)

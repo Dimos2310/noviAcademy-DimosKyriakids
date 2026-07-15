@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using WorldRank.Application.Services;
 using WorldRank.Application.Strategies;
 
 namespace WorldRank.Application;
@@ -13,11 +12,6 @@ public static class DependencyInjection
 		services.AddSingleton<IFundsStrategy, AddFundsStrategy>();
 		services.AddSingleton<IFundsStrategy, SubtractFundsStrategy>();
 		services.AddSingleton<IFundsStrategy, ForceSubtractFundsStrategy>();
-
-		// Application services that drive the menu use-cases.
-		// Register as Scoped because they consume repositories which can be database-backed Scoped services.
-		services.AddScoped<PlayerService>();
-		services.AddScoped<WalletService>();
 
 		return services;
 	}
