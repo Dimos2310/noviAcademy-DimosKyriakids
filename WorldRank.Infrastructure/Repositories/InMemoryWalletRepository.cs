@@ -7,7 +7,7 @@ using WorldRank.Domain.Exceptions;
 
 namespace WorldRank.Infrastructure.Repositories;
 
-public class InMemoryWalletRepository : IWalletRepository
+public class InMemoryWalletRepository : IWalletReadRepository, IWalletWriteRepository
 {
 	private readonly ILogger<InMemoryWalletRepository> _logger;
 

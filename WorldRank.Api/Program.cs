@@ -23,8 +23,10 @@ builder.Services.AddDbContext<WorldRankDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 
-builder.Services.AddScoped<IPlayerRepository, DBPlayerRepository>();
-builder.Services.AddScoped<IWalletRepository, DBWalletRepository>();
+builder.Services.AddScoped<IPlayerReadRepository, DBPlayerRepository>();
+builder.Services.AddScoped<IPlayerWriteRepository, DBPlayerRepository>();
+builder.Services.AddScoped<IWalletReadRepository, DBWalletRepository>();
+builder.Services.AddScoped<IWalletWriteRepository, DBWalletRepository>();
 
 // Single-instance in-memory cache (Day 6). Redis would replace this behind a load balancer.
 // Services depend on ICache (Application-owned port), never on IMemoryCache directly.

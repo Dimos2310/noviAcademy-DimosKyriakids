@@ -6,7 +6,7 @@ using WorldRank.Infrastructure.Persistence.Context;
 
 namespace WorldRank.Infrastructure.Repositories;
 
-public class DBPlayerRepository : IPlayerRepository
+public class DBPlayerRepository : IPlayerReadRepository, IPlayerWriteRepository
 {
 	private readonly WorldRankDbContext _context;
 	private readonly ILogger<DBPlayerRepository> _logger;

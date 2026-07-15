@@ -4,7 +4,7 @@ using WorldRank.Domain.Entities;
 
 namespace WorldRank.Infrastructure.Repositories;
 
-public class InMemoryPlayerRepository : IPlayerRepository
+public class InMemoryPlayerRepository : IPlayerReadRepository, IPlayerWriteRepository
 {
 	private readonly ILogger<InMemoryPlayerRepository> _logger;
 

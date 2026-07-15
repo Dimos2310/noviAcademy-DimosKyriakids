@@ -13,21 +13,24 @@ public class WalletService : IWalletService
 {
 	private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
-	private readonly IWalletRepository _walletRepository;
-	private readonly IPlayerRepository _playerRepository;
+	private readonly IWalletReadRepository _walletReadRepository;
+	private readonly IWalletWriteRepository _walletWriteRepository;
+	private readonly IPlayerReadRepository _playerReadRepository;
 	private readonly IReadOnlyDictionary<FundsOperation, IFundsStrategy> _fundsStrategies;
 	private readonly ICache _cache;
 	private readonly ILogger<WalletService> _logger;
 
 	public WalletService(
-		IWalletRepository walletRepository,
-		IPlayerRepository playerRepository,
+		IWalletReadRepository walletReadRepository,
+		IWalletWriteRepository walletWriteRepository,
+		IPlayerReadRepository playerReadRepository,
 		IEnumerable<IFundsStrategy> strategies,
 		ICache cache,
 		ILogger<WalletService> logger)
 	{
-		_walletRepository = walletRepository;
-		_playerRepository = playerRepository;
+		_walletReadRepository = walletReadRepository;
+		_walletWriteRepository = walletWriteRepository;
+		_playerReadRepository = playerReadRepository;
 
 		// Index every registered strategy by the operation it implements.
 		_fundsStrategies = strategies.ToDictionary(strategy => strategy.Operation);
@@ -42,12 +45,12 @@ public class WalletService : IWalletService
 
 	public async Task<Wallet> AddWalletToPlayerAsync(int playerId, Currency currency, decimal initialBalance, CancellationToken cancellationToken = default)
 	{
-		if (await _playerRepository.FindPlayerAsync(playerId, cancellationToken) is null)
+		if (await _playerReadRepository.FindPlayerAsync(playerId, cancellationToken) is null)
 			throw new PlayerNotFoundException(playerId);
 
 		// No id here: the store (database identity or in-memory repository) assigns it.
 		var wallet = new Wallet(playerId, currency, initialBalance);
-		await _walletRepository.AddAsync(wallet, cancellationToken);
+		await _walletWriteRepository.AddAsync(wallet, cancellationToken);
 
 		// Write-through + list-cache invalidation for the player this wallet belongs to.
 		_cache.Set(WalletCacheKey(wallet.Id), wallet, CacheTtl);
@@ -67,7 +70,7 @@ public class WalletService : IWalletService
 		}
 
 		_logger.LogInformation("Cache MISS wallets for player {PlayerId} — loading from database", playerId);
-		var wallets = await _walletRepository.GetAllWalletsByPlayerIdAsync(playerId, cancellationToken);
+		var wallets = await _walletReadRepository.GetAllWalletsByPlayerIdAsync(playerId, cancellationToken);
 
 		_cache.Set(key, (IReadOnlyList<Wallet>)wallets, CacheTtl);
 
@@ -85,7 +88,7 @@ public class WalletService : IWalletService
 		}
 
 		_logger.LogInformation("Cache MISS wallet {WalletId} — loading from database", walletId);
-		var wallet = await _walletRepository.GetByIdAsync(walletId, cancellationToken);
+		var wallet = await _walletReadRepository.GetByIdAsync(walletId, cancellationToken);
 
 		if (wallet is not null)
 			_cache.Set(key, wallet, CacheTtl);
@@ -95,71 +98,71 @@ public class WalletService : IWalletService
 
 	public async Task DepositAsync(int playerId, Currency currency, decimal amount, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.GetWalletAsync(playerId, currency, cancellationToken);
+		var wallet = await _walletReadRepository.GetWalletAsync(playerId, currency, cancellationToken);
 		await DepositByIdAsync(wallet.Id, amount, cancellationToken);
 	}
 
 	public async Task WithdrawAsync(int playerId, Currency currency, decimal amount, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.GetWalletAsync(playerId, currency, cancellationToken);
+		var wallet = await _walletReadRepository.GetWalletAsync(playerId, currency, cancellationToken);
 		await WithdrawByIdAsync(wallet.Id, amount, cancellationToken);
 	}
 
 	public async Task BlockAsync(int playerId, Currency currency, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.GetWalletAsync(playerId, currency, cancellationToken);
+		var wallet = await _walletReadRepository.GetWalletAsync(playerId, currency, cancellationToken);
 		await BlockByIdAsync(wallet.Id, cancellationToken);
 	}
 
 	public async Task UnblockAsync(int playerId, Currency currency, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.GetWalletAsync(playerId, currency, cancellationToken);
+		var wallet = await _walletReadRepository.GetWalletAsync(playerId, currency, cancellationToken);
 		await UnblockByIdAsync(wallet.Id, cancellationToken);
 	}
 
 	public async Task UpdateBalanceAsync(int playerId, Currency currency, decimal newBalance, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.GetWalletAsync(playerId, currency, cancellationToken);
+		var wallet = await _walletReadRepository.GetWalletAsync(playerId, currency, cancellationToken);
 		await UpdateBalanceByIdAsync(wallet.Id, newBalance, cancellationToken);
 	}
 
 	public async Task ApplyFundsAsync(int playerId, Currency currency, FundsOperation operation, decimal amount, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.GetWalletAsync(playerId, currency, cancellationToken);
+		var wallet = await _walletReadRepository.GetWalletAsync(playerId, currency, cancellationToken);
 		await ApplyFundsByIdAsync(wallet.Id, operation, amount, cancellationToken);
 	}
 
 	public async Task<Wallet> DepositByIdAsync(int walletId, decimal amount, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.DepositAsync(walletId, amount, cancellationToken);
+		var wallet = await _walletWriteRepository.DepositAsync(walletId, amount, cancellationToken);
 		RefreshWalletCache(wallet);
 		return wallet;
 	}
 
 	public async Task<Wallet> WithdrawByIdAsync(int walletId, decimal amount, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.WithdrawAsync(walletId, amount, cancellationToken);
+		var wallet = await _walletWriteRepository.WithdrawAsync(walletId, amount, cancellationToken);
 		RefreshWalletCache(wallet);
 		return wallet;
 	}
 
 	public async Task<Wallet> BlockByIdAsync(int walletId, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.BlockAsync(walletId, cancellationToken);
+		var wallet = await _walletWriteRepository.BlockAsync(walletId, cancellationToken);
 		RefreshWalletCache(wallet);
 		return wallet;
 	}
 
 	public async Task<Wallet> UnblockByIdAsync(int walletId, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.UnblockAsync(walletId, cancellationToken);
+		var wallet = await _walletWriteRepository.UnblockAsync(walletId, cancellationToken);
 		RefreshWalletCache(wallet);
 		return wallet;
 	}
 
 	public async Task<Wallet> UpdateBalanceByIdAsync(int walletId, decimal newBalance, CancellationToken cancellationToken = default)
 	{
-		var wallet = await _walletRepository.UpdateBalanceAsync(walletId, newBalance, cancellationToken);
+		var wallet = await _walletWriteRepository.UpdateBalanceAsync(walletId, newBalance, cancellationToken);
 		RefreshWalletCache(wallet);
 		return wallet;
 	}
@@ -169,7 +172,7 @@ public class WalletService : IWalletService
 		// Pick the strategy that matches the chosen operation (resolved from DI, no factory).
 		var strategy = _fundsStrategies[operation];
 
-		var wallet = await _walletRepository.ApplyStrategyAsync(walletId, strategy, amount, cancellationToken);
+		var wallet = await _walletWriteRepository.ApplyStrategyAsync(walletId, strategy, amount, cancellationToken);
 		RefreshWalletCache(wallet);
 		return wallet;
 	}

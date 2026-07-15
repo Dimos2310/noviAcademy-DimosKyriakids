@@ -11,13 +11,19 @@ public class PlayerService : IPlayerService
 	private const string AllPlayersCacheKey = "AllPlayersKey";
 	private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
-	private readonly IPlayerRepository _playerRepository;
+	private readonly IPlayerReadRepository _playerReadRepository;
+	private readonly IPlayerWriteRepository _playerWriteRepository;
 	private readonly ICache _cache;
 	private readonly ILogger<PlayerService> _logger;
 
-	public PlayerService(IPlayerRepository playerRepository, ICache cache, ILogger<PlayerService> logger)
+	public PlayerService(
+		IPlayerReadRepository playerReadRepository,
+		IPlayerWriteRepository playerWriteRepository,
+		ICache cache,
+		ILogger<PlayerService> logger)
 	{
-		_playerRepository = playerRepository;
+		_playerReadRepository = playerReadRepository;
+		_playerWriteRepository = playerWriteRepository;
 		_cache = cache;
 		_logger = logger;
 	}
@@ -28,7 +34,7 @@ public class PlayerService : IPlayerService
 		// repository), so the service never generates one itself.
 		var player = new Player(name);
 		player.AddScore(score);
-		await _playerRepository.AddPlayerAsync(player, cancellationToken);
+		await _playerWriteRepository.AddPlayerAsync(player, cancellationToken);
 
 		// Write-through: the cached list is now stale, drop it so the next read reloads it.
 		_cache.Remove(AllPlayersCacheKey);
@@ -45,7 +51,7 @@ public class PlayerService : IPlayerService
 		}
 
 		_logger.LogInformation("Cache MISS all players — loading from database");
-		var players = await _playerRepository.GetAllPlayersAsync(cancellationToken);
+		var players = await _playerReadRepository.GetAllPlayersAsync(cancellationToken);
 
 		_cache.Set(AllPlayersCacheKey, players, CacheTtl);
 
@@ -54,7 +60,7 @@ public class PlayerService : IPlayerService
 
 	public async Task<IEnumerable<IGrouping<int, Player>>> GroupPlayersByScoreAsync(CancellationToken cancellationToken = default)
 	{
-		return await _playerRepository.GroupPlayersByScoreAsync(cancellationToken);
+		return await _playerReadRepository.GroupPlayersByScoreAsync(cancellationToken);
 	}
 
 	public async Task<Player?> FindPlayerByNameAsync(string name, CancellationToken cancellationToken = default)
@@ -65,12 +71,12 @@ public class PlayerService : IPlayerService
 
 	public async Task<Player?> FindPlayerByIdAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		return await _playerRepository.FindPlayerAsync(playerId, cancellationToken);
+		return await _playerReadRepository.FindPlayerAsync(playerId, cancellationToken);
 	}
 
 	public async Task DeletePlayerAsync(int playerId, CancellationToken cancellationToken = default)
 	{
-		await _playerRepository.DeletePlayerAsync(playerId, cancellationToken);
+		await _playerWriteRepository.DeletePlayerAsync(playerId, cancellationToken);
 
 		// Write-through: the cached list is now stale, drop it so the next read reloads it.
 		_cache.Remove(AllPlayersCacheKey);
