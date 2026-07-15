@@ -6,11 +6,11 @@ namespace WorldRank.Application.Commands.Players;
 
 public class AddPlayerCommandHandler : IRequestHandler<AddPlayerCommand, int>
 {
-	private readonly IPlayerRepository _playerRepository;
+	private readonly IPlayerWriteRepository _playerWriteRepository;
 
-	public AddPlayerCommandHandler(IPlayerRepository playerRepository)
+	public AddPlayerCommandHandler(IPlayerWriteRepository playerWriteRepository)
 	{
-		_playerRepository = playerRepository;
+		_playerWriteRepository = playerWriteRepository;
 	}
 
 	public async Task<int> Handle(AddPlayerCommand request, CancellationToken cancellationToken)
@@ -18,7 +18,7 @@ public class AddPlayerCommandHandler : IRequestHandler<AddPlayerCommand, int>
 		var player = new Player(request.Name);
 		player.AddScore(request.Score);
 
-		await _playerRepository.AddPlayerAsync(player, cancellationToken);
+		await _playerWriteRepository.AddPlayerAsync(player, cancellationToken);
 		return player.Id;
 	}
 }

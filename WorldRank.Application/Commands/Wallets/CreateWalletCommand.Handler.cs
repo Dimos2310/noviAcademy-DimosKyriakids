@@ -7,22 +7,22 @@ namespace WorldRank.Application.Commands.Wallets;
 
 public class CreateWalletCommandHandler : IRequestHandler<CreateWalletCommand, int>
 {
-	private readonly IWalletRepository _walletRepository;
-	private readonly IPlayerRepository _playerRepository;
+	private readonly IWalletWriteRepository _walletWriteRepository;
+	private readonly IPlayerReadRepository _playerReadRepository;
 
-	public CreateWalletCommandHandler(IWalletRepository walletRepository, IPlayerRepository playerRepository)
+	public CreateWalletCommandHandler(IWalletWriteRepository walletWriteRepository, IPlayerReadRepository playerReadRepository)
 	{
-		_walletRepository = walletRepository;
-		_playerRepository = playerRepository;
+		_walletWriteRepository = walletWriteRepository;
+		_playerReadRepository = playerReadRepository;
 	}
 
 	public async Task<int> Handle(CreateWalletCommand request, CancellationToken cancellationToken)
 	{
-		if (await _playerRepository.FindPlayerAsync(request.PlayerId, cancellationToken) is null)
+		if (await _playerReadRepository.FindPlayerAsync(request.PlayerId, cancellationToken) is null)
 			throw new PlayerNotFoundException(request.PlayerId);
 
 		var wallet = new Wallet(request.PlayerId, request.Currency, request.InitialBalance);
-		await _walletRepository.AddAsync(wallet, cancellationToken);
+		await _walletWriteRepository.AddAsync(wallet, cancellationToken);
 		return wallet.Id;
 	}
 }

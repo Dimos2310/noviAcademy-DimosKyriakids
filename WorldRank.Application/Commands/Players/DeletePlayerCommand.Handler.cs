@@ -5,15 +5,15 @@ namespace WorldRank.Application.Commands.Players;
 
 public class DeletePlayerCommandHandler : IRequestHandler<DeletePlayerCommand>
 {
-	private readonly IPlayerRepository _playerRepository;
+	private readonly IPlayerWriteRepository _playerWriteRepository;
 
-	public DeletePlayerCommandHandler(IPlayerRepository playerRepository)
+	public DeletePlayerCommandHandler(IPlayerWriteRepository playerWriteRepository)
 	{
-		_playerRepository = playerRepository;
+		_playerWriteRepository = playerWriteRepository;
 	}
 
 	public async Task Handle(DeletePlayerCommand request, CancellationToken cancellationToken)
 	{
-		await _playerRepository.DeletePlayerAsync(request.PlayerId, cancellationToken);
+		await _playerWriteRepository.DeletePlayerAsync(request.PlayerId, cancellationToken);
 	}
 }

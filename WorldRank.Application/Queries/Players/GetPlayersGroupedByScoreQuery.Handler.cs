@@ -6,13 +6,13 @@ namespace WorldRank.Application.Queries.Players;
 
 public class GetPlayersGroupedByScoreQueryHandler : IRequestHandler<GetPlayersGroupedByScoreQuery, IEnumerable<IGrouping<int, Player>>>
 {
-	private readonly IPlayerRepository _playerRepository;
+	private readonly IPlayerReadRepository _playerReadRepository;
 
-	public GetPlayersGroupedByScoreQueryHandler(IPlayerRepository playerRepository)
+	public GetPlayersGroupedByScoreQueryHandler(IPlayerReadRepository playerReadRepository)
 	{
-		_playerRepository = playerRepository;
+		_playerReadRepository = playerReadRepository;
 	}
 
 	public Task<IEnumerable<IGrouping<int, Player>>> Handle(GetPlayersGroupedByScoreQuery request, CancellationToken cancellationToken)
-		=> _playerRepository.GroupPlayersByScoreAsync(cancellationToken);
+		=> _playerReadRepository.GroupPlayersByScoreAsync(cancellationToken);
 }

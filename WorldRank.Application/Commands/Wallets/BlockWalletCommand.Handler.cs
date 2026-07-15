@@ -6,13 +6,13 @@ namespace WorldRank.Application.Commands.Wallets;
 
 public class BlockWalletCommandHandler : IRequestHandler<BlockWalletCommand, Wallet>
 {
-	private readonly IWalletRepository _walletRepository;
+	private readonly IWalletWriteRepository _walletWriteRepository;
 
-	public BlockWalletCommandHandler(IWalletRepository walletRepository)
+	public BlockWalletCommandHandler(IWalletWriteRepository walletWriteRepository)
 	{
-		_walletRepository = walletRepository;
+		_walletWriteRepository = walletWriteRepository;
 	}
 
 	public Task<Wallet> Handle(BlockWalletCommand request, CancellationToken cancellationToken)
-		=> _walletRepository.BlockAsync(request.WalletId, cancellationToken);
+		=> _walletWriteRepository.BlockAsync(request.WalletId, cancellationToken);
 }

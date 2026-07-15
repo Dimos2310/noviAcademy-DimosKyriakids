@@ -6,13 +6,13 @@ namespace WorldRank.Application.Queries.Wallets;
 
 public class GetWalletsByPlayerQueryHandler : IRequestHandler<GetWalletsByPlayerQuery, IReadOnlyList<Wallet>>
 {
-	private readonly IWalletRepository _walletRepository;
+	private readonly IWalletReadRepository _walletReadRepository;
 
-	public GetWalletsByPlayerQueryHandler(IWalletRepository walletRepository)
+	public GetWalletsByPlayerQueryHandler(IWalletReadRepository walletReadRepository)
 	{
-		_walletRepository = walletRepository;
+		_walletReadRepository = walletReadRepository;
 	}
 
 	public async Task<IReadOnlyList<Wallet>> Handle(GetWalletsByPlayerQuery request, CancellationToken cancellationToken)
-		=> await _walletRepository.GetAllWalletsByPlayerIdAsync(request.PlayerId, cancellationToken);
+		=> await _walletReadRepository.GetAllWalletsByPlayerIdAsync(request.PlayerId, cancellationToken);
 }

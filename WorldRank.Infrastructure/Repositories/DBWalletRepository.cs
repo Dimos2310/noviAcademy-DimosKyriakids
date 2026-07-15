@@ -9,7 +9,7 @@ using WorldRank.Infrastructure.Persistence.Context;
 
 namespace WorldRank.Infrastructure.Repositories;
 
-public class DBWalletRepository : IWalletRepository
+public class DBWalletRepository : IWalletReadRepository, IWalletWriteRepository
 {
 	private const int MaxConcurrencyRetries = 3;
 

@@ -5,6 +5,7 @@
     <Project Path="WorldRank.Application/WorldRank.Application.csproj" />
     <Project Path="WorldRank.Console/WorldRank.Console.csproj" />
     <Project Path="WorldRank.Domain/WorldRank.Domain.csproj" />
+    <Project Path="WorldRank.Gateway/WorldRank.Gateway.csproj" />
     <Project Path="WorldRank.Infrastructure/WorldRank.Infrastructure.csproj" />
   </Folder>
 </Solution>

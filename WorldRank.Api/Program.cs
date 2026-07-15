@@ -2,13 +2,16 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using NLog.Extensions.Logging;
+using Quartz;
 using System.Data.Common;
 using System.Text.Json.Serialization;
 using WorldRank.Application;
 using WorldRank.Application.Interfaces;
 using WorldRank.Application.Strategies;
+using WorldRank.Gateway;
 using WorldRank.Infrastructure;
 using WorldRank.Infrastructure.Caching;
+using WorldRank.Infrastructure.Jobs;
 using WorldRank.Infrastructure.Persistence.Context;
 using WorldRank.Infrastructure.Repositories;
 
@@ -33,8 +36,10 @@ builder.Services.AddDbContext<WorldRankDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 
-builder.Services.AddScoped<IPlayerRepository, DBPlayerRepository>();
-builder.Services.AddScoped<IWalletRepository, DBWalletRepository>();
+builder.Services.AddScoped<IPlayerReadRepository, DBPlayerRepository>();
+builder.Services.AddScoped<IPlayerWriteRepository, DBPlayerRepository>();
+builder.Services.AddScoped<IWalletReadRepository, DBWalletRepository>();
+builder.Services.AddScoped<IWalletWriteRepository, DBWalletRepository>();
 
 // Single-instance in-memory cache (Day 6). Redis would replace this behind a load balancer.
 // Services depend on ICache (Application-owned port), never on IMemoryCache directly.
@@ -46,6 +51,25 @@ builder.Services.AddSingleton<ICache, MemoryCacheStore>();
 builder.Services.AddSingleton<IFundsStrategy, AddFundsStrategy>();
 builder.Services.AddSingleton<IFundsStrategy, SubtractFundsStrategy>();
 builder.Services.AddSingleton<IFundsStrategy, ForceSubtractFundsStrategy>();
+
+// External API communication (typed HttpClients, DTOs) lives in its own project,
+// isolated from Domain/Application.
+builder.Services.AddGateway();
+
+// Quartz job: periodically fetches the ECB daily reference rates and stores them.
+builder.Services.AddQuartz(q =>
+{
+    var jobKey = new JobKey(nameof(UpdateCurrencyRatesJob));
+
+    q.AddJob<UpdateCurrencyRatesJob>(options => options.WithIdentity(jobKey));
+    q.AddTrigger(options => options
+        .ForJob(jobKey)
+        .WithIdentity($"{nameof(UpdateCurrencyRatesJob)}-trigger")
+        .WithSimpleSchedule(schedule => schedule.WithIntervalInHours(1).RepeatForever())
+        .StartNow());
+});
+
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
 // Accept/emit enums (e.g. Currency) as their string names, not numbers.
 builder.Services.AddControllers()

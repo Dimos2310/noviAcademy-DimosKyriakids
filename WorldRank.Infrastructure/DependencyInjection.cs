@@ -18,14 +18,25 @@ public static class DependencyInjection
 		if (UseDatabase)
 		{
 			// Database-backed repositories share the DbContext lifetime (Scoped).
-			services.AddScoped<IPlayerRepository, DBPlayerRepository>();
-			services.AddScoped<IWalletRepository, DBWalletRepository>();
+			// Each interface resolves its own instance of the same class — both share the
+			// scoped DbContext, so there's no split-brain risk within a request.
+			services.AddScoped<IPlayerReadRepository, DBPlayerRepository>();
+			services.AddScoped<IPlayerWriteRepository, DBPlayerRepository>();
+			services.AddScoped<IWalletReadRepository, DBWalletRepository>();
+			services.AddScoped<IWalletWriteRepository, DBWalletRepository>();
 		}
 		else
 		{
-			// In-memory repositories must be Singletons to keep their state.
-			services.AddSingleton<IPlayerRepository, InMemoryPlayerRepository>();
-			services.AddSingleton<IWalletRepository, InMemoryWalletRepository>();
+			// In-memory repositories must be Singletons, and BOTH interfaces must resolve
+			// the *same* instance — the list lives in the object itself, so two separate
+			// instances would mean writes never show up in reads.
+			services.AddSingleton<InMemoryPlayerRepository>();
+			services.AddSingleton<IPlayerReadRepository>(sp => sp.GetRequiredService<InMemoryPlayerRepository>());
+			services.AddSingleton<IPlayerWriteRepository>(sp => sp.GetRequiredService<InMemoryPlayerRepository>());
+
+			services.AddSingleton<InMemoryWalletRepository>();
+			services.AddSingleton<IWalletReadRepository>(sp => sp.GetRequiredService<InMemoryWalletRepository>());
+			services.AddSingleton<IWalletWriteRepository>(sp => sp.GetRequiredService<InMemoryWalletRepository>());
 		}
 
 		// EF Core over SQL Server. SQL authentication (User Id/Password) — the

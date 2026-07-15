@@ -7,6 +7,7 @@ public partial class WorldRankDbContext : DbContext
 {
 	public DbSet<Player> Players { get; set; }
 	public DbSet<Wallet> Wallets { get; set; }
+	public DbSet<CurrencyRates> CurrencyRates { get; set; }
 
 	public WorldRankDbContext(DbContextOptions<WorldRankDbContext> options) : base(options)
 	{
@@ -42,6 +43,18 @@ public partial class WorldRankDbContext : DbContext
 			// infrastructure concern. Guards Deposit/Withdraw/ApplyStrategy/
 			// UpdateBalance against lost updates from concurrent requests.
 			x.Property<byte[]>("RowVersion").IsRowVersion();
+		});
+
+		modelBuilder.Entity<CurrencyRates>(x =>
+		{
+			x.ToTable("CurrencyRates");
+			x.HasKey(y => y.Id);
+			x.Property(y => y.Id).ValueGeneratedOnAdd();
+			x.Property(y => y.Currency).HasMaxLength(3).IsRequired();
+			x.Property(y => y.Rate).HasPrecision(18, 6).IsRequired();
+			x.Property(y => y.Date).IsRequired();
+			// One rate per currency per reference date.
+			x.HasIndex(y => new { y.Currency, y.Date }).IsUnique();
 		});
 
 		base.OnModelCreating(modelBuilder);

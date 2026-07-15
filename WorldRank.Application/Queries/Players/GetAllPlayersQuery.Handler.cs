@@ -6,13 +6,13 @@ namespace WorldRank.Application.Queries.Players;
 
 public class GetAllPlayersQueryHandler : IRequestHandler<GetAllPlayersQuery, IReadOnlyList<Player>>
 {
-	private readonly IPlayerRepository _playerRepository;
+	private readonly IPlayerReadRepository _playerReadRepository;
 
-	public GetAllPlayersQueryHandler(IPlayerRepository playerRepository)
+	public GetAllPlayersQueryHandler(IPlayerReadRepository playerReadRepository)
 	{
-		_playerRepository = playerRepository;
+		_playerReadRepository = playerReadRepository;
 	}
 
 	public Task<IReadOnlyList<Player>> Handle(GetAllPlayersQuery request, CancellationToken cancellationToken)
-		=> _playerRepository.GetAllPlayersAsync(cancellationToken);
+		=> _playerReadRepository.GetAllPlayersAsync(cancellationToken);
 }

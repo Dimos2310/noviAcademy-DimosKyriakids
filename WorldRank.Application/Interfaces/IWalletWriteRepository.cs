@@ -1,22 +1,11 @@
 using WorldRank.Application.Strategies;
 using WorldRank.Domain.Entities;
-using WorldRank.Domain.Enums;
 
 namespace WorldRank.Application.Interfaces;
 
-public interface IWalletRepository
+public interface IWalletWriteRepository
 {
 	Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default);
-
-	Task<Wallet[]> GetAllAsync(CancellationToken cancellationToken = default);
-
-	Task<List<Wallet>> GetAllWalletsByPlayerIdAsync(int playerId, CancellationToken cancellationToken = default);
-
-	// Composite-key lookup — used to translate (playerId, currency) into a wallet id.
-	Task<Wallet> GetWalletAsync(int playerId, Currency currency, CancellationToken cancellationToken = default);
-
-	// Identity lookup — the canonical way the API addresses a wallet.
-	Task<Wallet?> GetByIdAsync(int walletId, CancellationToken cancellationToken = default);
 
 	Task<Wallet> UpdateBalanceAsync(int walletId, decimal newBalance, CancellationToken cancellationToken = default);
 

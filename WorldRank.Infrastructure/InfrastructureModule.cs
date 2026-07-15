@@ -8,11 +8,14 @@ public class InfrastructureModule : Module
 {
 	protected override void Load(ContainerBuilder builder)
 	{
-		// IPlayerRepository / IWalletRepository are registered as scoped services in
-		// Program.cs (builder.Services.AddScoped<...>) and merged into this container by
+		// IPlayerReadRepository / IPlayerWriteRepository / IWalletReadRepository /
+		// IWalletWriteRepository are registered as scoped services in Program.cs
+		// (builder.Services.AddScoped<...>) and merged into this container by
 		// AutofacServiceProviderFactory. These decorators wrap whichever implementation is
 		// registered there (DB or in-memory) with cache-aside reads and write-through writes.
-		builder.RegisterDecorator(typeof(PlayerRepositoryCachingDecorator), typeof(IPlayerRepository));
-		builder.RegisterDecorator(typeof(WalletRepositoryCachingDecorator), typeof(IWalletRepository));
+		builder.RegisterDecorator(typeof(PlayerReadRepositoryCachingDecorator), typeof(IPlayerReadRepository));
+		builder.RegisterDecorator(typeof(PlayerWriteRepositoryCachingDecorator), typeof(IPlayerWriteRepository));
+		builder.RegisterDecorator(typeof(WalletReadRepositoryCachingDecorator), typeof(IWalletReadRepository));
+		builder.RegisterDecorator(typeof(WalletWriteRepositoryCachingDecorator), typeof(IWalletWriteRepository));
 	}
 }

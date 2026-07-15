@@ -6,13 +6,13 @@ namespace WorldRank.Application.Commands.Wallets;
 
 public class UpdateWalletBalanceCommandHandler : IRequestHandler<UpdateWalletBalanceCommand, Wallet>
 {
-	private readonly IWalletRepository _walletRepository;
+	private readonly IWalletWriteRepository _walletWriteRepository;
 
-	public UpdateWalletBalanceCommandHandler(IWalletRepository walletRepository)
+	public UpdateWalletBalanceCommandHandler(IWalletWriteRepository walletWriteRepository)
 	{
-		_walletRepository = walletRepository;
+		_walletWriteRepository = walletWriteRepository;
 	}
 
 	public Task<Wallet> Handle(UpdateWalletBalanceCommand request, CancellationToken cancellationToken)
-		=> _walletRepository.UpdateBalanceAsync(request.WalletId, request.NewBalance, cancellationToken);
+		=> _walletWriteRepository.UpdateBalanceAsync(request.WalletId, request.NewBalance, cancellationToken);
 }
