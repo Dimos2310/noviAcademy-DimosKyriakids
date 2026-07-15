@@ -1,23 +1,36 @@
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using WorldRank.Application.Services;
+using WorldRank.Application;
+using WorldRank.Application.Commands.Players;
+using WorldRank.Application.Commands.Wallets;
+using WorldRank.Application.Queries.Players;
+using WorldRank.Application.Queries.Wallets;
 using WorldRank.Console;
 using WorldRank.Domain.Exceptions;
 using WorldRank.Infrastructure;
 
 var logger = LogManager.GetCurrentClassLogger();
 
-// Composition root: register every layer's services, then build the container.
+// Composition root: register every layer's services, then hand the container over to Autofac
+// so ApplicationModule/InfrastructureModule can wrap MediatR handlers and repositories in decorators.
 var services = new ServiceCollection();
 services.AddWorldRank();
 
-using var provider = services.BuildServiceProvider();
+var containerBuilder = new ContainerBuilder();
+containerBuilder.Populate(services);
+containerBuilder.RegisterModule(new ApplicationModule());
+containerBuilder.RegisterModule(new InfrastructureModule());
+
+using var container = containerBuilder.Build();
+IServiceProvider provider = new AutofacServiceProvider(container);
 
 // Create the database and its schema on first run (no-op when running in-memory).
 provider.InitializeDatabase();
 
-var playerService = provider.GetRequiredService<PlayerService>();
-var walletService = provider.GetRequiredService<WalletService>();
+var mediator = provider.GetRequiredService<IMediator>();
 
 logger.Info("Application started.");
 
@@ -101,13 +114,13 @@ async Task AddPlayer()
 		return;
 	}
 
-	await playerService.AddPlayerAsync(name, score);
+	await mediator.Send(new AddPlayerCommand(name, score));
 	Console.WriteLine("Player added successfully.");
 }
 
 async Task ListPlayers()
 {
-	var all = (await playerService.GetAllPlayersAsync()).ToList();
+	var all = (await mediator.Send(new GetAllPlayersQuery())).ToList();
 
 	if (all.Count == 0)
 	{
@@ -121,7 +134,7 @@ async Task ListPlayers()
 
 async Task ListPlayersByScore()
 {
-	var groups = (await playerService.GroupPlayersByScoreAsync()).ToList();
+	var groups = (await mediator.Send(new GetPlayersGroupedByScoreQuery())).ToList();
 
 	if (groups.Count == 0)
 	{
@@ -142,7 +155,7 @@ async Task FindPlayerByName()
 	Console.Write("Search by name: ");
 	var term = Console.ReadLine() ?? string.Empty;
 
-	var player = await playerService.FindPlayerByNameAsync(term);
+	var player = await mediator.Send(new GetPlayerByNameQuery(term));
 
 	Console.WriteLine(player is null ? "No player found." : player.ToString());
 }
@@ -153,7 +166,7 @@ async Task FindPlayerById()
 	if (playerId is null)
 		return;
 
-	var player = await playerService.FindPlayerByIdAsync(playerId.Value);
+	var player = await mediator.Send(new GetPlayerByIdQuery(playerId.Value));
 
 	Console.WriteLine(player is null ? "No player found." : player.ToString());
 }
@@ -164,7 +177,7 @@ async Task DeletePlayer()
 	if (playerId is null)
 		return;
 
-	await playerService.DeletePlayerAsync(playerId.Value);
+	await mediator.Send(new DeletePlayerCommand(playerId.Value));
 	Console.WriteLine("Player deleted (if it existed).");
 }
 
@@ -188,7 +201,7 @@ async Task AddWalletToPlayer()
 
 	try
 	{
-		await walletService.AddWalletToPlayerAsync(playerId.Value, currency.Value, balance.Value);
+		await mediator.Send(new CreateWalletCommand(playerId.Value, currency.Value, balance.Value));
 		Console.WriteLine("Wallet added successfully.");
 	}
 	catch (PlayerNotFoundException ex)
@@ -209,7 +222,7 @@ async Task GetWalletsOfPlayer()
 	if (playerId is null)
 		return;
 
-	var wallets = await walletService.GetWalletsOfPlayerAsync(playerId.Value);
+	var wallets = await mediator.Send(new GetWalletsByPlayerQuery(playerId.Value));
 
 	if (wallets.Count == 0)
 	{
@@ -237,7 +250,8 @@ async Task DepositToWallet()
 
 	await RunWalletOperation(async () =>
 	{
-		await walletService.DepositAsync(playerId.Value, currency.Value, amount.Value);
+		var wallet = await mediator.Send(new GetWalletByPlayerAndCurrencyQuery(playerId.Value, currency.Value));
+		await mediator.Send(new DepositCommand(wallet.Id, amount.Value));
 		Console.WriteLine("Deposit successful.");
 	});
 }
@@ -258,7 +272,8 @@ async Task WithdrawFromWallet()
 
 	await RunWalletOperation(async () =>
 	{
-		await walletService.WithdrawAsync(playerId.Value, currency.Value, amount.Value);
+		var wallet = await mediator.Send(new GetWalletByPlayerAndCurrencyQuery(playerId.Value, currency.Value));
+		await mediator.Send(new WithdrawCommand(wallet.Id, amount.Value));
 		Console.WriteLine("Withdrawal successful.");
 	});
 }
@@ -275,7 +290,8 @@ async Task BlockWallet()
 
 	await RunWalletOperation(async () =>
 	{
-		await walletService.BlockAsync(playerId.Value, currency.Value);
+		var wallet = await mediator.Send(new GetWalletByPlayerAndCurrencyQuery(playerId.Value, currency.Value));
+		await mediator.Send(new BlockWalletCommand(wallet.Id));
 		Console.WriteLine("Wallet blocked.");
 	});
 }
@@ -292,7 +308,8 @@ async Task UnblockWallet()
 
 	await RunWalletOperation(async () =>
 	{
-		await walletService.UnblockAsync(playerId.Value, currency.Value);
+		var wallet = await mediator.Send(new GetWalletByPlayerAndCurrencyQuery(playerId.Value, currency.Value));
+		await mediator.Send(new UnblockWalletCommand(wallet.Id));
 		Console.WriteLine("Wallet unblocked.");
 	});
 }
@@ -313,7 +330,8 @@ async Task UpdateWalletBalance()
 
 	await RunWalletOperation(async () =>
 	{
-		await walletService.UpdateBalanceAsync(playerId.Value, currency.Value, newBalance.Value);
+		var wallet = await mediator.Send(new GetWalletByPlayerAndCurrencyQuery(playerId.Value, currency.Value));
+		await mediator.Send(new UpdateWalletBalanceCommand(wallet.Id, newBalance.Value));
 		Console.WriteLine("Balance updated.");
 	});
 }
@@ -338,7 +356,8 @@ async Task ApplyFundsOperation()
 
 	await RunWalletOperation(async () =>
 	{
-		await walletService.ApplyFundsAsync(playerId.Value, currency.Value, operation.Value, amount.Value);
+		var wallet = await mediator.Send(new GetWalletByPlayerAndCurrencyQuery(playerId.Value, currency.Value));
+		await mediator.Send(new ApplyFundsCommand(wallet.Id, operation.Value, amount.Value));
 		Console.WriteLine($"{operation} operation applied.");
 	});
 }

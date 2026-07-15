@@ -1,15 +1,28 @@
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using NLog.Extensions.Logging;
 using System.Data.Common;
 using System.Text.Json.Serialization;
+using WorldRank.Application;
 using WorldRank.Application.Interfaces;
-using WorldRank.Application.Services;
 using WorldRank.Application.Strategies;
+using WorldRank.Infrastructure;
 using WorldRank.Infrastructure.Caching;
 using WorldRank.Infrastructure.Persistence.Context;
 using WorldRank.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Autofac replaces the built-in DI container so RegisterGenericDecorator can wrap every
+// MediatR handler (LoggingDecorator) — the built-in container has no decorator support.
+builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+
+builder.Host.ConfigureContainer<ContainerBuilder>(container =>
+{
+    container.RegisterModule(new ApplicationModule());
+    container.RegisterModule(new InfrastructureModule());
+});
 
 // Logging via NLog (same nlog.config layout as the Console app).
 builder.Logging.ClearProviders();
@@ -27,10 +40,6 @@ builder.Services.AddScoped<IWalletRepository, DBWalletRepository>();
 // Services depend on ICache (Application-owned port), never on IMemoryCache directly.
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ICache, MemoryCacheStore>();
-
-// The services own the caching (cache-aside reads + write-through) and reach the DB via the repositories.
-builder.Services.AddScoped<IWalletService, WalletService>();
-builder.Services.AddScoped<IPlayerService, PlayerService>();
 
 // All strategies are registered under the same interface; WalletService resolves them
 // as a collection and picks the one whose Operation matches - no factory.
